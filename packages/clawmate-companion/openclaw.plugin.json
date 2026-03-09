@@ -50,6 +50,56 @@
           "enabled": { "type": "boolean" },
           "probability": { "type": "number", "minimum": 0, "maximum": 1 }
         }
+      },
+      "agents": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "selectedCharacter": { "type": "string" },
+            "characterRoot": { "type": "string" },
+            "userCharacterRoot": { "type": "string" },
+            "defaultProvider": { "type": "string" },
+            "fallback": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "order": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            },
+            "retry": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "maxAttempts": { "type": "integer", "minimum": 1 },
+                "backoffMs": { "type": "number", "exclusiveMinimum": 0 }
+              }
+            },
+            "pollIntervalMs": { "type": "number", "exclusiveMinimum": 0 },
+            "pollTimeoutMs": { "type": "number", "exclusiveMinimum": 0 },
+            "degradeMessage": { "type": "string" },
+            "providers": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "proactiveSelfie": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "probability": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            }
+          }
+        }
       }
     }
   }

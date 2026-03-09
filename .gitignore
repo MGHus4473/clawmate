@@ -1,7 +1,6 @@
 # Project-specific
 doc/reference-projects/
 clawmate/image/
-openspec/
 
 # Dependencies
 node_modules/

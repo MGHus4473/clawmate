@@ -105,6 +105,29 @@ npm install
 npm run clawmate:setup
 ```
 
+多 Agent 设计方案见 [doc/multi-agent-design.md](doc/multi-agent-design.md)。
+
+多 Agent 配置示例：
+
+```json
+{
+  "selectedCharacter": "brooke-anime",
+  "defaultProvider": "volcengine",
+  "agents": {
+    "ding-main": {
+      "selectedCharacter": "brooke-anime",
+      "defaultProvider": "volcengine"
+    },
+    "ding-work": {
+      "selectedCharacter": "brooke",
+      "defaultProvider": "aliyun"
+    }
+  }
+}
+```
+
+插件会按当前 Agent 的 `workspace` 分别写入各自的 `SOUL.md`，不会再共用同一份人格文件。
+
 ---
 
 ## 图像服务配置

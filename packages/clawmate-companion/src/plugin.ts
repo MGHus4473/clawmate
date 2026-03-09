@@ -11,7 +11,7 @@ import { createLogger } from "./core/logger";
 import { normalizeConfig, defaultUserCharacterRoot } from "./core/config";
 import type { ClawMateConfig, CreateCharacterInput, GenerateSelfieFailure, GenerateSelfieResult, SelfieMode } from "./core/types";
 
-interface PluginConfigInput {
+interface PluginConfigOverrideInput {
   selectedCharacter?: string;
   characterRoot?: string;
   userCharacterRoot?: string;
@@ -23,6 +23,10 @@ interface PluginConfigInput {
   degradeMessage?: string;
   providers?: Record<string, unknown>;
   proactiveSelfie?: { enabled?: boolean; probability?: number };
+}
+
+interface PluginConfigInput extends PluginConfigOverrideInput {
+  agents?: Record<string, PluginConfigOverrideInput>;
 }
 
 interface PrepareParams {
@@ -38,6 +42,45 @@ interface ToolParams {
   mode?: SelfieMode;
 }
 
+interface OpenClawRuntimeScopeLike {
+  agentId?: string;
+  workspaceDir?: string;
+  sessionId?: string;
+  sessionKey?: string;
+}
+
+interface OpenClawHookContextLike extends OpenClawRuntimeScopeLike {
+  channelId?: string;
+}
+
+interface OpenClawToolContextLike extends OpenClawRuntimeScopeLike {
+  messageChannel?: string;
+  agentAccountId?: string;
+  requesterSenderId?: string;
+  senderIsOwner?: boolean;
+  sandboxed?: boolean;
+}
+
+interface ToolContent {
+  type: string;
+  text: string;
+}
+
+interface ToolResult {
+  content: ToolContent[];
+}
+
+interface OpenClawPluginToolLike<TParams = ToolParams> {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+  execute: (toolCallId: string, params: TParams) => Promise<ToolResult>;
+}
+
+type OpenClawPluginToolFactoryLike = (
+  ctx: OpenClawToolContextLike,
+) => OpenClawPluginToolLike | OpenClawPluginToolLike[] | null | undefined;
+
 interface OpenClawPluginApiLike {
   resolvePath: (input: string) => string;
   pluginConfig?: Record<string, unknown>;
@@ -46,13 +89,15 @@ interface OpenClawPluginApiLike {
     warn?: (message: string) => void;
     error?: (message: string) => void;
   };
-  on: (hookName: string, handler: (event: unknown, ctx: unknown) => Promise<unknown> | unknown) => void;
-  registerTool: (tool: {
-    name: string;
-    description: string;
-    parameters: Record<string, unknown>;
-    execute: (toolCallId: string, params: ToolParams) => Promise<{ content: Array<{ type: string; text: string }> }>;
-  }) => void;
+  on: (
+    hookName: string,
+    handler: (event: unknown, ctx: OpenClawHookContextLike) => Promise<unknown> | unknown,
+  ) => void;
+  registerTool: (tool: OpenClawPluginToolLike | OpenClawPluginToolFactoryLike) => void;
+}
+
+interface CharacterPrepareSessionState {
+  characterPrepareCalled: boolean;
 }
 
 const DATA_URL_PATTERN = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i;
@@ -118,7 +163,10 @@ function resolveGeneratedImageDir(now = new Date()): string {
   return path.join(openClawHome, "media", "clawmate-generated", day);
 }
 
-function resolveSoulMdPath(): string {
+function resolveSoulMdPath(workspaceDir?: string): string {
+  if (typeof workspaceDir === "string" && workspaceDir.trim()) {
+    return path.join(workspaceDir, "SOUL.md");
+  }
   const openClawHome = process.env.OPENCLAW_HOME?.trim() || path.join(os.homedir(), ".openclaw");
   return path.join(openClawHome, "workspace", "SOUL.md");
 }
@@ -152,14 +200,15 @@ function extractCharacterIdFromSoul(soulContent: string): string | null {
 async function ensurePersonaInjectedToSoul(
   characterId: string,
   personaText: string,
-  logger: ReturnType<typeof createLogger>
+  logger: ReturnType<typeof createLogger>,
+  workspaceDir?: string,
 ): Promise<void> {
   const trimmedPersona = personaText.trim();
   if (!trimmedPersona) {
     return;
   }
 
-  const soulPath = resolveSoulMdPath();
+  const soulPath = resolveSoulMdPath(workspaceDir);
   await fs.mkdir(path.dirname(soulPath), { recursive: true });
 
   let currentSoul = "";
@@ -337,11 +386,89 @@ function toRecord(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function resolveRuntimeConfig(api: OpenClawPluginApiLike): ClawMateConfig {
+function mergeNestedRecord(base: unknown, override: unknown): Record<string, unknown> {
+  return {
+    ...toRecord(base),
+    ...toRecord(override),
+  };
+}
+
+function mergeProviderConfigs(base: unknown, override: unknown): Record<string, unknown> {
+  const merged = {
+    ...toRecord(base),
+  };
+
+  for (const [providerName, rawConfig] of Object.entries(toRecord(override))) {
+    if (rawConfig && typeof rawConfig === "object" && !Array.isArray(rawConfig)) {
+      merged[providerName] = {
+        ...toRecord(merged[providerName]),
+        ...toRecord(rawConfig),
+      };
+      continue;
+    }
+    merged[providerName] = rawConfig;
+  }
+
+  return merged;
+}
+
+function mergePluginConfigInput(
+  base: PluginConfigOverrideInput,
+  override?: PluginConfigOverrideInput,
+): PluginConfigOverrideInput {
+  if (!override) {
+    return {
+      ...base,
+      fallback: mergeNestedRecord(base.fallback, undefined),
+      retry: mergeNestedRecord(base.retry, undefined),
+      providers: mergeProviderConfigs(base.providers, undefined),
+      proactiveSelfie: mergeNestedRecord(base.proactiveSelfie, undefined),
+    };
+  }
+
+  return {
+    ...base,
+    ...override,
+    fallback: mergeNestedRecord(base.fallback, override.fallback),
+    retry: mergeNestedRecord(base.retry, override.retry),
+    providers: mergeProviderConfigs(base.providers, override.providers),
+    proactiveSelfie: mergeNestedRecord(base.proactiveSelfie, override.proactiveSelfie),
+  };
+}
+
+function resolveConfigPath(pluginRoot: string, configuredPath?: string): string | undefined {
+  if (!configuredPath) {
+    return undefined;
+  }
+  return path.isAbsolute(configuredPath) ? configuredPath : path.join(pluginRoot, configuredPath);
+}
+
+function resolveAgentOverride(
+  pluginConfig: PluginConfigInput,
+  agentId?: string,
+): PluginConfigOverrideInput | undefined {
+  if (!agentId) {
+    return undefined;
+  }
+  const normalizedAgentId = agentId.trim();
+  if (!normalizedAgentId) {
+    return undefined;
+  }
+  const agents = toRecord(pluginConfig.agents);
+  const matched = agents[normalizedAgentId];
+  return matched && typeof matched === "object" && !Array.isArray(matched)
+    ? (matched as PluginConfigOverrideInput)
+    : undefined;
+}
+
+function resolveRuntimeConfig(
+  api: OpenClawPluginApiLike,
+  scope: OpenClawRuntimeScopeLike = {},
+): ClawMateConfig {
   const pluginConfig = toRecord(api.pluginConfig) as PluginConfigInput;
   const pluginRoot = resolvePluginRoot(api);
   const defaultUserRoot = defaultUserCharacterRoot();
-  const defaults: PluginConfigInput = {
+  const defaults: PluginConfigOverrideInput = {
     selectedCharacter: "brooke",
     characterRoot: path.join(pluginRoot, "skills", "clawmate-companion", "assets", "characters"),
     userCharacterRoot: defaultUserRoot,
@@ -360,22 +487,21 @@ function resolveRuntimeConfig(api: OpenClawPluginApiLike): ClawMateConfig {
     proactiveSelfie: { enabled: false, probability: 0.1 },
   };
 
-  const merged = {
-    ...defaults,
-    ...pluginConfig,
-  };
+  const { agents: _agents, ...globalOverrides } = pluginConfig;
+  const merged = mergePluginConfigInput(
+    mergePluginConfigInput(defaults, globalOverrides),
+    resolveAgentOverride(pluginConfig, scope.agentId),
+  );
   const normalized = normalizeConfig(merged);
 
-  if (pluginConfig.characterRoot) {
-    normalized.characterRoot = path.isAbsolute(pluginConfig.characterRoot)
-      ? pluginConfig.characterRoot
-      : path.join(pluginRoot, pluginConfig.characterRoot);
+  const resolvedCharacterRoot = resolveConfigPath(pluginRoot, merged.characterRoot);
+  if (resolvedCharacterRoot) {
+    normalized.characterRoot = resolvedCharacterRoot;
   }
 
-  if (pluginConfig.userCharacterRoot) {
-    normalized.userCharacterRoot = path.isAbsolute(pluginConfig.userCharacterRoot)
-      ? pluginConfig.userCharacterRoot
-      : path.join(pluginRoot, pluginConfig.userCharacterRoot);
+  const resolvedUserCharacterRoot = resolveConfigPath(pluginRoot, merged.userCharacterRoot);
+  if (resolvedUserCharacterRoot) {
+    normalized.userCharacterRoot = resolvedUserCharacterRoot;
   }
 
   // Never store custom characters under plugin install directory.
@@ -386,6 +512,39 @@ function resolveRuntimeConfig(api: OpenClawPluginApiLike): ClawMateConfig {
 
   return normalized;
 }
+
+function buildSessionStateKey(scope: OpenClawRuntimeScopeLike): string {
+  const agentId = scope.agentId?.trim() || "default";
+  const sessionId = scope.sessionId?.trim() || "__global__";
+  return `${agentId}:${sessionId}`;
+}
+
+function getOrCreateCharacterPrepareState(
+  states: Map<string, CharacterPrepareSessionState>,
+  scope: OpenClawRuntimeScopeLike,
+): CharacterPrepareSessionState {
+  const key = buildSessionStateKey(scope);
+  const existing = states.get(key);
+  if (existing) {
+    return existing;
+  }
+  const nextState: CharacterPrepareSessionState = { characterPrepareCalled: false };
+  states.set(key, nextState);
+  return nextState;
+}
+
+function clearCharacterPrepareState(
+  states: Map<string, CharacterPrepareSessionState>,
+  scope: OpenClawRuntimeScopeLike,
+): void {
+  states.delete(buildSessionStateKey(scope));
+}
+
+export const __testing = {
+  resolveRuntimeConfig,
+  resolveSoulMdPath,
+  buildSessionStateKey,
+};
 
 async function formatResult(result: GenerateSelfieResult, logger: ReturnType<typeof createLogger>): Promise<string> {
   if (result.ok) {
@@ -418,15 +577,12 @@ async function formatResult(result: GenerateSelfieResult, logger: ReturnType<typ
 export default function registerClawMateCompanion(api: OpenClawPluginApiLike): void {
   const pluginRoot = resolvePluginRoot(api);
   const logger = createLogger("clawmate-plugin", { useStderr: true });
-  let prepareCalled = false;
-  let characterPrepareCalled = false;
+  const characterPrepareStates = new Map<string, CharacterPrepareSessionState>();
 
   // 注册阶段仅同步注册 Hook/Tool，不执行异步初始化。
-  api.on("before_agent_start", async () => {
-    prepareCalled = false;
-    characterPrepareCalled = false;
+  api.on("before_agent_start", async (_event, ctx) => {
     try {
-      const config = resolveRuntimeConfig(api);
+      const config = resolveRuntimeConfig(api, ctx);
       const character = await loadCharacterAssets({
         characterId: config.selectedCharacter,
         characterRoot: config.characterRoot,
@@ -437,11 +593,15 @@ export default function registerClawMateCompanion(api: OpenClawPluginApiLike): v
       const personaText = character.characterPrompt;
 
       // 静态人格一次性落盘到 SOUL.md（已注入则自动跳过）
-      await ensurePersonaInjectedToSoul(config.selectedCharacter, personaText, logger);
+      await ensurePersonaInjectedToSoul(config.selectedCharacter, personaText, logger, ctx.workspaceDir);
 
       // Level 2: 随机触发主动发图
       if (config.proactiveSelfie.enabled && Math.random() < config.proactiveSelfie.probability) {
-        logger.info("proactiveSelfie 触发", { probability: config.proactiveSelfie.probability });
+        logger.info("proactiveSelfie 触发", {
+          probability: config.proactiveSelfie.probability,
+          agentId: ctx.agentId,
+          workspaceDir: ctx.workspaceDir,
+        });
         return {
           prependContext: "结合当前对话内容和用户的状态，在回应用户之后，使用 clawmate-companion-selfie skill 生成一张自拍表示关心。",
         };
@@ -450,244 +610,270 @@ export default function registerClawMateCompanion(api: OpenClawPluginApiLike): v
       logger.warn("before_agent_start 注入失败", {
         message: error instanceof Error ? error.message : String(error),
         pluginRoot,
+        agentId: ctx.agentId,
+        workspaceDir: ctx.workspaceDir,
       });
     }
   });
 
-  api.registerTool({
-    name: "clawmate_prepare_selfie",
-    description: "提取用户意图，返回角色时间状态、拍摄模式指南和提示词模板，供模型生成高质量提示词",
-    parameters: {
-      type: "object",
-      additionalProperties: false,
-      required: ["mode"],
-      properties: {
-        mode: { type: "string", enum: ["mirror", "direct"], description: "拍摄模式（必填）" },
-        scene: { type: "string", description: "用户指定场景（可选）" },
-        action: { type: "string", description: "用户指定动作（可选）" },
-        emotion: { type: "string", description: "用户指定情绪（可选）" },
-        details: { type: "string", description: "其他细节（可选）" },
-      },
-    },
-    async execute(_toolCallId: string, params: PrepareParams) {
-      const config = resolveRuntimeConfig(api);
-      const resolvedMode: SelfieMode = params.mode === "mirror" ? "mirror" : "direct";
-      logger.info("Tool1 输入", {
-        tool: "clawmate_prepare_selfie",
-        params,
-        resolvedMode,
-      });
-      try {
-        const result = await prepareSelfie({ mode: resolvedMode, config, cwd: pluginRoot });
-        prepareCalled = true;
-        logger.info("Tool1 输出", {
-          tool: "clawmate_prepare_selfie",
-          result,
-        });
-        return { content: [{ type: "text", text: JSON.stringify(result) }] };
-      } catch (error) {
-        logger.error("Tool1 输出（失败）", {
-          tool: "clawmate_prepare_selfie",
-          error: error instanceof Error ? error.message : String(error),
-        });
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
-          }],
-        };
-      }
-    },
+  api.on("session_end", async (_event, ctx) => {
+    clearCharacterPrepareState(characterPrepareStates, ctx);
   });
 
-  api.registerTool({
-    name: "clawmate_generate_selfie",
-    description: "接收模型生成的完整英文提示词，调用图像生成服务生成 ClawMate 自拍图并返回结构化结果",
-    parameters: {
-      type: "object",
-      additionalProperties: false,
-      required: ["prompt", "mode"],
-      properties: {
-        prompt: { type: "string", description: "模型生成的完整英文提示词（必填）" },
-        mode: { type: "string", enum: ["mirror", "direct"], description: "拍摄模式（必填）" },
-      },
-    },
-    async execute(_toolCallId: string, params: ToolParams) {
-      if (!prepareCalled) {
-        logger.warn("generate_selfie 被跳过 prepare 直接调用，拒绝执行");
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              ok: false,
-              error: "必须先调用 clawmate_prepare_selfie 获取参考包，再调用本工具。请先调用 clawmate_prepare_selfie。",
-            }),
-          }],
-        };
-      }
-      const config = resolveRuntimeConfig(api);
-      const resolvedMode: SelfieMode = params.mode === "mirror" ? "mirror" : "direct";
-      let result: GenerateSelfieResult;
-      try {
-        result = await generateSelfie({
-          config,
-          cwd: pluginRoot,
-          prompt: params.prompt,
-          mode: resolvedMode,
-          eventSource: "plugin_tool",
-          logger,
-        });
-      } catch (error) {
-        result = {
-          ok: false,
-          degraded: true,
-          provider: null,
-          requestId: null,
-          message: config.degradeMessage,
-          error: error instanceof Error ? error.message : String(error),
-        };
-      }
-
-      let text: string;
-      try {
-        text = await formatResult(result, logger);
-      } catch (error) {
-        const remoteImageUrl =
-          result.ok && HTTP_URL_PATTERN.test(result.imageUrl.trim()) ? result.imageUrl.trim() : null;
-        logger.error("图片本地化失败", {
-          provider: result.ok ? result.provider : null,
-          requestId: result.ok ? result.requestId ?? null : null,
-          imageUrl: remoteImageUrl,
-          message: error instanceof Error ? error.message : String(error),
-        });
-        text = JSON.stringify({
-          ok: false,
-          degraded: true,
-          provider: result.ok ? result.provider : null,
-          requestId: result.ok ? result.requestId ?? null : null,
-          message: config.degradeMessage,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-
-      return {
-        content: [
-          {
-            type: "text",
-            text,
-          },
-        ],
-      };
-    },
+  api.on("before_reset", async (_event, ctx) => {
+    clearCharacterPrepareState(characterPrepareStates, ctx);
   });
 
-  api.registerTool({
-    name: "clawmate_prepare_character",
-    description:
-      "准备创建自定义角色：返回角色定义 schema、已有角色样例（meta + characterPrompt）、可用角色列表、referenceImage 选项说明。【重要】调用本工具后，模型必须根据用户描述生成完整角色草稿（包括 characterId、meta、characterPrompt 全文、referenceImage），将草稿完整展示给用户审阅，等待用户明确确认或修改后，才能调用 clawmate_create_character 写盘。禁止在用户确认前直接调用 clawmate_create_character。referenceImage 允许不上传。",
-    parameters: {
-      type: "object",
-      additionalProperties: false,
-      required: ["description"],
-      properties: {
-        description: { type: "string", description: "用户对想要创建的角色的自然语言描述" },
+  api.registerTool((ctx) => {
+    let prepareCalled = false;
+    const toolScope = ctx ?? {};
+    const getConfig = () => resolveRuntimeConfig(api, toolScope);
+    const getCharacterState = () => getOrCreateCharacterPrepareState(characterPrepareStates, toolScope);
+
+    const prepareSelfieTool: OpenClawPluginToolLike<PrepareParams> = {
+      name: "clawmate_prepare_selfie",
+      description: "提取用户意图，返回角色时间状态、拍摄模式指南和提示词模板，供模型生成高质量提示词",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        required: ["mode"],
+        properties: {
+          mode: { type: "string", enum: ["mirror", "direct"], description: "拍摄模式（必填）" },
+          scene: { type: "string", description: "用户指定场景（可选）" },
+          action: { type: "string", description: "用户指定动作（可选）" },
+          emotion: { type: "string", description: "用户指定情绪（可选）" },
+          details: { type: "string", description: "其他细节（可选）" },
+        },
       },
-    },
-    async execute(_toolCallId: string, rawParams: ToolParams) {
-      const params = rawParams as unknown as { description?: string };
-      const config = resolveRuntimeConfig(api);
-      try {
-        // Pick example character based on style hint in user description
-        const desc = (params.description ?? "").toLowerCase();
-        const isAnime = /anime|动漫|二次元|插画|漫画/.test(desc);
-        const exampleCharacterId = isAnime ? "brooke-anime" : "brooke";
-
-        const exampleCharacter = await loadCharacterAssets({
-          characterId: exampleCharacterId,
-          characterRoot: config.characterRoot,
-          userCharacterRoot: config.userCharacterRoot,
-          cwd: pluginRoot,
-          allowMissingReference: true,
+      async execute(_toolCallId: string, params: PrepareParams) {
+        const config = getConfig();
+        const resolvedMode: SelfieMode = params.mode === "mirror" ? "mirror" : "direct";
+        logger.info("Tool1 输入", {
+          tool: "clawmate_prepare_selfie",
+          params,
+          resolvedMode,
+          agentId: toolScope.agentId,
+          sessionId: toolScope.sessionId,
         });
+        try {
+          const result = await prepareSelfie({ mode: resolvedMode, config, cwd: pluginRoot });
+          prepareCalled = true;
+          logger.info("Tool1 输出", {
+            tool: "clawmate_prepare_selfie",
+            result,
+            agentId: toolScope.agentId,
+            sessionId: toolScope.sessionId,
+          });
+          return { content: [{ type: "text", text: JSON.stringify(result) }] };
+        } catch (error) {
+          logger.error("Tool1 输出（失败）", {
+            tool: "clawmate_prepare_selfie",
+            error: error instanceof Error ? error.message : String(error),
+            agentId: toolScope.agentId,
+            sessionId: toolScope.sessionId,
+          });
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+            }],
+          };
+        }
+      },
+    };
 
-        const characters = await listCharacters({
-          characterRoot: config.characterRoot,
-          userCharacterRoot: config.userCharacterRoot,
-          cwd: pluginRoot,
-        });
+    const generateSelfieTool: OpenClawPluginToolLike<ToolParams> = {
+      name: "clawmate_generate_selfie",
+      description: "接收模型生成的完整英文提示词，调用图像生成服务生成 ClawMate 自拍图并返回结构化结果",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        required: ["prompt", "mode"],
+        properties: {
+          prompt: { type: "string", description: "模型生成的完整英文提示词（必填）" },
+          mode: { type: "string", enum: ["mirror", "direct"], description: "拍摄模式（必填）" },
+        },
+      },
+      async execute(_toolCallId: string, params: ToolParams) {
+        if (!prepareCalled) {
+          logger.warn("generate_selfie 被跳过 prepare 直接调用，拒绝执行", {
+            agentId: toolScope.agentId,
+            sessionId: toolScope.sessionId,
+          });
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                ok: false,
+                error: "必须先调用 clawmate_prepare_selfie 获取参考包，再调用本工具。请先调用 clawmate_prepare_selfie。",
+              }),
+            }],
+          };
+        }
+        const config = getConfig();
+        const resolvedMode: SelfieMode = params.mode === "mirror" ? "mirror" : "direct";
+        let result: GenerateSelfieResult;
+        try {
+          result = await generateSelfie({
+            config,
+            cwd: pluginRoot,
+            prompt: params.prompt,
+            mode: resolvedMode,
+            eventSource: "plugin_tool",
+            logger,
+          });
+        } catch (error) {
+          result = {
+            ok: false,
+            degraded: true,
+            provider: null,
+            requestId: null,
+            message: config.degradeMessage,
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
 
-        const result = {
-          schema: {
-            characterId: "2-30 chars, lowercase alphanumeric and hyphens, must start/end with alphanumeric",
-            meta: {
-              id: "must match characterId",
-              name: "角色中文名（必填）",
-              englishName: "角色英文名（可选）",
-              style: '画风风格（可选）："photorealistic"（写实，默认）或 "anime"（动漫）',
-              descriptionZh: "角色中文简介（可选）",
-              descriptionEn: "角色英文简介（可选）",
-              timeStates: "时间状态定义（建议提供）：可使用 morning / afternoon / evening / night 模板；若用户明确拒绝可省略",
+        let text: string;
+        try {
+          text = await formatResult(result, logger);
+        } catch (error) {
+          const remoteImageUrl =
+            result.ok && HTTP_URL_PATTERN.test(result.imageUrl.trim()) ? result.imageUrl.trim() : null;
+          logger.error("图片本地化失败", {
+            provider: result.ok ? result.provider : null,
+            requestId: result.ok ? result.requestId ?? null : null,
+            imageUrl: remoteImageUrl,
+            message: error instanceof Error ? error.message : String(error),
+            agentId: toolScope.agentId,
+            sessionId: toolScope.sessionId,
+          });
+          text = JSON.stringify({
+            ok: false,
+            degraded: true,
+            provider: result.ok ? result.provider : null,
+            requestId: result.ok ? result.requestId ?? null : null,
+            message: config.degradeMessage,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text,
             },
-            characterPrompt: "角色人格提示词（必填，markdown 格式，描述角色性格、说话风格、背景故事等）",
-            referenceImage: '可选：{ source: "existing", characterId: "..." } 或 { source: "local", path: "/absolute/path/to/image.png" } 或 { source: "none" }',
-          },
-          timeStatesTemplate: {
-            morning: {
-              range: "06:00-11:00",
-              scene: "campus cafe or classroom",
-              outfit: "casual daytime outfit",
-              lighting: "soft natural daylight",
-            },
-            afternoon: {
-              range: "11:00-17:00",
-              scene: "library, studio, or outdoor campus area",
-              outfit: "light casual outfit suitable for study/work",
-              lighting: "bright neutral daylight",
-            },
-            evening: {
-              range: "17:00-22:00",
-              scene: "dorm room, art corner, or bookstore",
-              outfit: "relaxed indoor outfit",
-              lighting: "warm indoor lighting",
-            },
-            night: {
-              range: "22:00-06:00",
-              scene: "quiet desk by window or cozy bedroom corner",
-              outfit: "comfortable homewear",
-              lighting: "dim warm lamp or soft ambient light",
-            },
-          },
-          example: {
-            meta: exampleCharacter.meta,
-            characterPrompt: exampleCharacter.characterPrompt,
-          },
-          availableCharacters: characters.map((c) => ({
-            id: c.id,
-            name: c.name,
-            builtIn: c.builtIn,
-          })),
-          referenceImageOptions: [
-            '从已有角色复制: { "source": "existing", "characterId": "<已有角色id>" }',
-            '使用本地图片: { "source": "local", "path": "/absolute/path/to/reference.png" }',
-            '不上传参考图: { "source": "none" }',
           ],
-          rules: [
-            "characterId 必须全局唯一",
-            "meta.id 必须与 characterId 一致",
-            'meta.style 可选，值为 "photorealistic"（写实）或 "anime"（动漫），不填默认 photorealistic',
-            "characterPrompt 用 markdown 编写，描述角色完整人格",
-            "第一步草稿必须包含 timeStates；如果用户未提供具体时段信息，基于用户描述自动生成合理的 morning/afternoon/evening/night",
-            "referenceImage 可选；不上传时建议优先使用动漫风格（anime）",
-            '禁止将 referenceImage 默认填为 {"source":"none"}；只有用户明确表示"不上传参考图"时才能使用',
-            "严格按两步执行：第一步先确认 meta + characterPrompt + timeStates；第二步再单独确认 referenceImage",
-            '若用户已明确指定风格（如"动漫风格"），直接写入 meta.style，不要重复询问同一信息',
-          ],
-          noReferenceImageGuidance: {
-            allowed: true,
-            recommendation: "可以不上传参考图；不上传时建议优先使用动漫风格（anime）。",
-          },
-          userDescription: params.description ?? "",
-          nextStep: `严格按两步执行。
+        };
+      },
+    };
+
+    const prepareCharacterTool: OpenClawPluginToolLike<ToolParams> = {
+      name: "clawmate_prepare_character",
+      description:
+        "准备创建自定义角色：返回角色定义 schema、已有角色样例（meta + characterPrompt）、可用角色列表、referenceImage 选项说明。【重要】调用本工具后，模型必须根据用户描述生成完整角色草稿（包括 characterId、meta、characterPrompt 全文、referenceImage），将草稿完整展示给用户审阅，等待用户明确确认或修改后，才能调用 clawmate_create_character 写盘。禁止在用户确认前直接调用 clawmate_create_character。referenceImage 允许不上传。",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        required: ["description"],
+        properties: {
+          description: { type: "string", description: "用户对想要创建的角色的自然语言描述" },
+        },
+      },
+      async execute(_toolCallId: string, rawParams: ToolParams) {
+        const params = rawParams as unknown as { description?: string };
+        const config = getConfig();
+        try {
+          const desc = (params.description ?? "").toLowerCase();
+          const isAnime = /anime|动漫|二次元|插画|漫画/.test(desc);
+          const exampleCharacterId = isAnime ? "brooke-anime" : "brooke";
+
+          const exampleCharacter = await loadCharacterAssets({
+            characterId: exampleCharacterId,
+            characterRoot: config.characterRoot,
+            userCharacterRoot: config.userCharacterRoot,
+            cwd: pluginRoot,
+            allowMissingReference: true,
+          });
+
+          const characters = await listCharacters({
+            characterRoot: config.characterRoot,
+            userCharacterRoot: config.userCharacterRoot,
+            cwd: pluginRoot,
+          });
+
+          const result = {
+            schema: {
+              characterId: "2-30 chars, lowercase alphanumeric and hyphens, must start/end with alphanumeric",
+              meta: {
+                id: "must match characterId",
+                name: "角色中文名（必填）",
+                englishName: "角色英文名（可选）",
+                style: '画风风格（可选）："photorealistic"（写实，默认）或 "anime"（动漫）',
+                descriptionZh: "角色中文简介（可选）",
+                descriptionEn: "角色英文简介（可选）",
+                timeStates: "时间状态定义（建议提供）：可使用 morning / afternoon / evening / night 模板；若用户明确拒绝可省略",
+              },
+              characterPrompt: "角色人格提示词（必填，markdown 格式，描述角色性格、说话风格、背景故事等）",
+              referenceImage: '可选：{ source: "existing", characterId: "..." } 或 { source: "local", path: "/absolute/path/to/image.png" } 或 { source: "none" }',
+            },
+            timeStatesTemplate: {
+              morning: {
+                range: "06:00-11:00",
+                scene: "campus cafe or classroom",
+                outfit: "casual daytime outfit",
+                lighting: "soft natural daylight",
+              },
+              afternoon: {
+                range: "11:00-17:00",
+                scene: "library, studio, or outdoor campus area",
+                outfit: "light casual outfit suitable for study/work",
+                lighting: "bright neutral daylight",
+              },
+              evening: {
+                range: "17:00-22:00",
+                scene: "dorm room, art corner, or bookstore",
+                outfit: "relaxed indoor outfit",
+                lighting: "warm indoor lighting",
+              },
+              night: {
+                range: "22:00-06:00",
+                scene: "quiet desk by window or cozy bedroom corner",
+                outfit: "comfortable homewear",
+                lighting: "dim warm lamp or soft ambient light",
+              },
+            },
+            example: {
+              meta: exampleCharacter.meta,
+              characterPrompt: exampleCharacter.characterPrompt,
+            },
+            availableCharacters: characters.map((c) => ({
+              id: c.id,
+              name: c.name,
+              builtIn: c.builtIn,
+            })),
+            referenceImageOptions: [
+              '从已有角色复制: { "source": "existing", "characterId": "<已有角色id>" }',
+              '使用本地图片: { "source": "local", "path": "/absolute/path/to/reference.png" }',
+              '不上传参考图: { "source": "none" }',
+            ],
+            rules: [
+              "characterId 必须全局唯一",
+              "meta.id 必须与 characterId 一致",
+              'meta.style 可选，值为 "photorealistic"（写实）或 "anime"（动漫），不填默认 photorealistic',
+              "characterPrompt 用 markdown 编写，描述角色完整人格",
+              "第一步草稿必须包含 timeStates；如果用户未提供具体时段信息，基于用户描述自动生成合理的 morning/afternoon/evening/night",
+              "referenceImage 可选；不上传时建议优先使用动漫风格（anime）",
+              '禁止将 referenceImage 默认填为 {"source":"none"}；只有用户明确表示"不上传参考图"时才能使用',
+              "严格按两步执行：第一步先确认 meta + characterPrompt + timeStates；第二步再单独确认 referenceImage",
+              '若用户已明确指定风格（如"动漫风格"），直接写入 meta.style，不要重复询问同一信息',
+            ],
+            noReferenceImageGuidance: {
+              allowed: true,
+              recommendation: "可以不上传参考图；不上传时建议优先使用动漫风格（anime）。",
+            },
+            userDescription: params.description ?? "",
+            nextStep: `严格按两步执行。
 
 【第一步】根据用户描述和 example 样例，直接生成首版完整草稿，使用以下固定格式展示给用户：
 
@@ -704,104 +890,110 @@ export default function registerClawMateCompanion(api: OpenClawPluginApiLike): v
 先让用户确认或修改以上内容，不要先问 referenceImage。
 
 【第二步】在第一步确认后，再单独询问 referenceImage 来源（existing/local/none）。referenceImage 绝不能默认使用 {source:none}，除非用户明确说不上传参考图。若用户已明确说动漫风格或写实风格，直接采用，不要重复确认。用户确认最终草稿后，才能调用 clawmate_create_character。`,
-        };
+          };
 
+          getCharacterState().characterPrepareCalled = true;
+          return { content: [{ type: "text", text: JSON.stringify(result) }] };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+            }],
+          };
+        }
+      },
+    };
 
-        characterPrepareCalled = true;
-        return { content: [{ type: "text", text: JSON.stringify(result) }] };
-      } catch (error) {
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
-          }],
-        };
-      }
-    },
-  });
-
-  api.registerTool({
-    name: "clawmate_create_character",
-    description:
-      "创建自定义角色：接收完整角色定义（characterId, meta, characterPrompt, referenceImage 可选），校验后写入用户角色目录。必须先调用 clawmate_prepare_character 获取 schema 和样例。",
-    parameters: {
-      type: "object",
-      additionalProperties: false,
-      required: ["characterId", "meta", "characterPrompt"],
-      properties: {
-        characterId: { type: "string", description: "角色唯一标识（必填）" },
-        meta: {
-          type: "object",
-          description: "角色元数据（必填）",
-          properties: {
-            id: { type: "string" },
-            name: { type: "string" },
-            englishName: { type: "string" },
-            style: { type: "string", enum: ["photorealistic", "anime"], description: '画风风格，默认 photorealistic' },
-            descriptionZh: { type: "string" },
-            descriptionEn: { type: "string" },
-            timeStates: { type: "object" },
+    const createCharacterTool: OpenClawPluginToolLike<ToolParams> = {
+      name: "clawmate_create_character",
+      description:
+        "创建自定义角色：接收完整角色定义（characterId, meta, characterPrompt, referenceImage 可选），校验后写入用户角色目录。必须先调用 clawmate_prepare_character 获取 schema 和样例。",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        required: ["characterId", "meta", "characterPrompt"],
+        properties: {
+          characterId: { type: "string", description: "角色唯一标识（必填）" },
+          meta: {
+            type: "object",
+            description: "角色元数据（必填）",
+            properties: {
+              id: { type: "string" },
+              name: { type: "string" },
+              englishName: { type: "string" },
+              style: { type: "string", enum: ["photorealistic", "anime"], description: '画风风格，默认 photorealistic' },
+              descriptionZh: { type: "string" },
+              descriptionEn: { type: "string" },
+              timeStates: { type: "object" },
+            },
+            required: ["id", "name"],
           },
-          required: ["id", "name"],
-        },
-        characterPrompt: { type: "string", description: "角色人格提示词 markdown（必填）" },
-        referenceImage: {
-          type: "object",
-          description: '参考图来源（可选）',
-          properties: {
-            source: { type: "string", enum: ["existing", "local", "none"] },
-            characterId: { type: "string" },
-            path: { type: "string" },
+          characterPrompt: { type: "string", description: "角色人格提示词 markdown（必填）" },
+          referenceImage: {
+            type: "object",
+            description: "参考图来源（可选）",
+            properties: {
+              source: { type: "string", enum: ["existing", "local", "none"] },
+              characterId: { type: "string" },
+              path: { type: "string" },
+            },
+            required: ["source"],
           },
-          required: ["source"],
         },
       },
-    },
-    async execute(_toolCallId: string, rawParams: ToolParams) {
-      if (!characterPrepareCalled) {
-        logger.warn("create_character 被跳过 prepare_character 直接调用，拒绝执行");
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              ok: false,
-              error: "必须先调用 clawmate_prepare_character 获取 schema 和样例，再调用本工具。请先调用 clawmate_prepare_character。",
-            }),
-          }],
-        };
-      }
-      const params = rawParams as unknown as CreateCharacterInput;
-      const config = resolveRuntimeConfig(api);
-      try {
-        const result = await createCharacter({
-          input: params,
-          userCharacterRoot: config.userCharacterRoot,
-          characterRoot: config.characterRoot,
-          cwd: pluginRoot,
-        });
+      async execute(_toolCallId: string, rawParams: ToolParams) {
+        const characterState = getCharacterState();
+        if (!characterState.characterPrepareCalled) {
+          logger.warn("create_character 被跳过 prepare_character 直接调用，拒绝执行", {
+            agentId: toolScope.agentId,
+            sessionId: toolScope.sessionId,
+          });
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                ok: false,
+                error: "必须先调用 clawmate_prepare_character 获取 schema 和样例，再调用本工具。请先调用 clawmate_prepare_character。",
+              }),
+            }],
+          };
+        }
+        const params = rawParams as unknown as CreateCharacterInput;
+        const config = getConfig();
+        try {
+          const result = await createCharacter({
+            input: params,
+            userCharacterRoot: config.userCharacterRoot,
+            characterRoot: config.characterRoot,
+            cwd: pluginRoot,
+          });
 
-        characterPrepareCalled = false;
+          characterState.characterPrepareCalled = false;
 
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              ...result,
-              hint: `角色 "${params.characterId}" 创建成功！可以通过修改配置 selectedCharacter 为 "${params.characterId}" 来切换到新角色。`,
-            }),
-          }],
-        };
-      } catch (error) {
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              ok: false,
-              error: error instanceof Error ? error.message : String(error),
-            }),
-          }],
-        };
-      }
-    },
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                ...result,
+                hint: `角色 "${params.characterId}" 创建成功！可以通过修改配置 selectedCharacter 为 "${params.characterId}" 来切换到新角色。`,
+              }),
+            }],
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                ok: false,
+                error: error instanceof Error ? error.message : String(error),
+              }),
+            }],
+          };
+        }
+      },
+    };
+
+    return [prepareSelfieTool, generateSelfieTool, prepareCharacterTool, createCharacterTool];
   });
 }
