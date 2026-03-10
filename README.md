@@ -164,7 +164,8 @@ npm run clawmate:setup
 }
 ```
 
-支持任何兼容 OpenAI `/v1/images/edits` 接口的服务，可通过 `baseUrl` 指定自定义端点。
+支持兼容 OpenAI 的图片模型服务，可通过 `baseUrl` 指定自定义端点。
+有输入图片时优先尝试 `/v1/images/edits`，失败后回退到 `/v1/chat/completions`；没有输入图片时直接调用 `/v1/chat/completions`。
 
 **阿里云百炼**
 

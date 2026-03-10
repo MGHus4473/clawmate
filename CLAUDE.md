@@ -49,7 +49,7 @@ Located in `src/core/`:
   - `volcengine-ark.ts`: Volcengine ARK API
   - `dashscope-aliyun.ts`: Alibaba Cloud Bailian (DashScope)
   - `fal.ts`: fal.ai provider
-  - `openai-compatible.ts`: OpenAI `/images/edits` endpoint
+  - `openai-compatible.ts`: OpenAI-compatible image provider (`/images/edits` first, fallback to `/chat/completions`)
   - `http-async.ts`: Generic async submit/poll pattern
   - `mock.ts`: Testing provider
 - **prepare.ts**: Builds reference package for Tool 1 (character info, time state, style rules, prompt templates)

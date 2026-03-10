@@ -8,7 +8,7 @@
   },
   "scripts": {
     "clawmate:plugin:check": "node packages/clawmate-companion/scripts/check-manifest-id.mjs",
-    "clawmate:test": "node --import tsx --test packages/clawmate-companion/src/plugin.test.ts",
+    "clawmate:test": "node --import tsx --test packages/clawmate-companion/src/plugin.test.ts packages/clawmate-companion/src/cli.test.cjs packages/clawmate-companion/src/core/providers/openai-compatible.test.ts",
     "clawmate:probe:openai": "cd packages/clawmate-companion && node --import tsx skills/clawmate-companion/scripts/probe-openai-edits.ts",
     "clawmate:setup": "node packages/clawmate-companion/bin/cli.cjs"
   },

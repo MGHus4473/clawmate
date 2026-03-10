@@ -1,4 +1,4 @@
-import OpenAI, { APIConnectionError, APIConnectionTimeoutError, APIError } from "openai";
+import OpenAI, { APIConnectionError, APIConnectionTimeoutError, APIError, toFile } from "openai";
 import { ProviderError } from "../errors";
 import type { GenerateRequest, ProviderAdapter, ProviderConfig } from "../types";
 import {
@@ -67,12 +67,50 @@ function isDataImageUrl(value: string): boolean {
   return /^data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+$/i.test(value);
 }
 
+function parseDataImageUrl(value: string): { mimeType: string; base64: string } | null {
+  const match = value.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i);
+  if (!match) {
+    return null;
+  }
+  return {
+    mimeType: match[1],
+    base64: match[2],
+  };
+}
+
 function normalizeBase64(text: string): string {
   return text.replace(/\s+/g, "").replace(/^[("'\s]+|[)"'\s]+$/g, "");
 }
 
 function trimPotentialUrl(text: string): string {
   return text.replace(/[),.;!?]+$/, "");
+}
+
+function extensionForMimeType(mimeType: string | null): string {
+  switch ((mimeType ?? "").toLowerCase()) {
+    case "image/jpeg":
+      return "jpg";
+    case "image/webp":
+      return "webp";
+    case "image/gif":
+      return "gif";
+    case "image/png":
+    default:
+      return "png";
+  }
+}
+
+function guessFileNameFromUrl(url: string, fallbackName: string): string {
+  try {
+    const parsed = new URL(url);
+    const fileName = parsed.pathname.split("/").filter(Boolean).pop();
+    if (fileName) {
+      return fileName;
+    }
+  } catch {
+    // Ignore invalid URLs and fall back to generated file names.
+  }
+  return fallbackName;
 }
 
 function pickImageFromString(value: string): string | null {
@@ -206,6 +244,119 @@ function resolveReferenceImages(body: Record<string, unknown>, payload: Generate
   );
 }
 
+function hasEditInput(body: Record<string, unknown>, payload: GenerateRequest): boolean {
+  return resolveReferenceImages(body, payload).length > 0 || hasOwn(body, "image") || hasOwn(body, "images");
+}
+
+async function toUploadableImage(
+  providerName: string,
+  fetchImpl: typeof fetch,
+  value: string,
+  kind: "image" | "mask",
+  index: number,
+) {
+  const dataImage = parseDataImageUrl(value);
+  if (dataImage) {
+    return toFile(Buffer.from(dataImage.base64, "base64"), `${kind}-${index + 1}.${extensionForMimeType(dataImage.mimeType)}`, {
+      type: dataImage.mimeType,
+    });
+  }
+
+  if (!/^https?:\/\//i.test(value)) {
+    throw new ProviderError(`provider ${providerName} ${kind} 不支持的图片输入格式`, {
+      code: "PROVIDER_REQUEST_INVALID",
+      details: {
+        kind,
+        value,
+      },
+    });
+  }
+
+  let response: Response;
+  try {
+    response = await fetchImpl(value);
+  } catch (error) {
+    throw new ProviderError(`provider ${providerName} 下载 ${kind} 失败: ${error instanceof Error ? error.message : String(error)}`, {
+      code: "PROVIDER_HTTP_FAILED",
+      transient: true,
+      details: {
+        kind,
+        url: value,
+      },
+    });
+  }
+
+  if (!response.ok) {
+    throw new ProviderError(`provider ${providerName} 下载 ${kind} 失败: ${response.status} ${response.statusText}`, {
+      code: "PROVIDER_HTTP_FAILED",
+      transient: response.status === 429 || response.status >= 500,
+      details: {
+        kind,
+        status: response.status,
+        url: value,
+      },
+    });
+  }
+
+  const mimeType = response.headers.get("content-type")?.split(";")[0]?.trim() ?? null;
+  return toFile(
+    response,
+    guessFileNameFromUrl(value, `${kind}-${index + 1}.${extensionForMimeType(mimeType)}`),
+    mimeType ? { type: mimeType } : undefined,
+  );
+}
+
+async function buildImagesEditBody(
+  config: NormalizedConfig,
+  payload: GenerateRequest,
+  fetchImpl: typeof fetch,
+): Promise<OpenAI.ImageEditParamsNonStreaming> {
+  const body: Record<string, unknown> = {
+    ...config.extraBody,
+  };
+
+  const prompt = toOptionalString(body.prompt)?.trim() ?? payload.prompt.trim();
+  if (!prompt) {
+    throw new ProviderError(`provider ${config.name} prompt 不能为空`, {
+      code: "PROVIDER_REQUEST_INVALID",
+    });
+  }
+
+  if (!hasOwn(body, "model")) {
+    body.model = config.model;
+  }
+  body.prompt = prompt;
+  body.stream = false;
+
+  const referenceImages = resolveReferenceImages(body, payload);
+  if (referenceImages.length > 0) {
+    const uploadables = await Promise.all(
+      referenceImages.map((referenceImage, index) => toUploadableImage(config.name, fetchImpl, referenceImage, "image", index)),
+    );
+    body.image = uploadables.length === 1 ? uploadables[0] : uploadables;
+  } else if (hasOwn(body, "images") && !hasOwn(body, "image")) {
+    body.image = body.images;
+  }
+
+  const maskImage = extractImageUrl(body.mask);
+  if (maskImage) {
+    body.mask = await toUploadableImage(config.name, fetchImpl, maskImage, "mask", 0);
+  }
+
+  if (!hasOwn(body, "image")) {
+    throw new ProviderError(`provider ${config.name} 缺少编辑输入图片`, {
+      code: "PROVIDER_REQUEST_INVALID",
+    });
+  }
+
+  delete body.messages;
+  delete body.images;
+  delete body.image_url;
+  delete body.input_image;
+
+  return body as unknown as OpenAI.ImageEditParamsNonStreaming;
+}
+
 function buildChatBody(
   config: NormalizedConfig,
   payload: GenerateRequest,
@@ -252,6 +403,67 @@ function buildChatBody(
   delete body.mask;
 
   return body as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming;
+}
+
+async function executeImagesEdit(
+  client: OpenAI,
+  config: NormalizedConfig,
+  payload: GenerateRequest,
+  fetchImpl: typeof fetch,
+) {
+  try {
+    const body = await buildImagesEditBody(config, payload, fetchImpl);
+    const { data, request_id } = await client.images.edit(body).withResponse();
+    const imageUrl = extractImageUrl(data);
+
+    if (!imageUrl) {
+      throw new ProviderError(`provider ${config.name} 响应中未找到图片 URL`, {
+        code: "PROVIDER_PARSE_ERROR",
+        requestId: request_id,
+        details: { response: data },
+      });
+    }
+
+    return {
+      imageUrl,
+      requestId: request_id,
+    };
+  } catch (error) {
+    if (error instanceof ProviderError) {
+      throw error;
+    }
+    mapSDKError(error, config.name);
+  }
+}
+
+async function executeChatCompletion(
+  client: OpenAI,
+  config: NormalizedConfig,
+  payload: GenerateRequest,
+) {
+  try {
+    const body = buildChatBody(config, payload);
+    const { data, request_id } = await client.chat.completions.create(body).withResponse();
+    const imageUrl = extractImageUrl(data);
+
+    if (!imageUrl) {
+      throw new ProviderError(`provider ${config.name} 响应中未找到图片 URL`, {
+        code: "PROVIDER_PARSE_ERROR",
+        requestId: request_id,
+        details: { response: data },
+      });
+    }
+
+    return {
+      imageUrl,
+      requestId: request_id,
+    };
+  } catch (error) {
+    if (error instanceof ProviderError) {
+      throw error;
+    }
+    mapSDKError(error, config.name);
+  }
 }
 
 function mapSDKError(error: unknown, providerName: string): never {
@@ -314,29 +526,15 @@ export function createOpenAICompatibleProvider(
     name: config.name,
 
     async generate(payload: GenerateRequest) {
-      try {
-        const body = buildChatBody(config, payload);
-        const { data, request_id } = await client.chat.completions.create(body).withResponse();
-        const imageUrl = extractImageUrl(data);
-
-        if (!imageUrl) {
-          throw new ProviderError(`provider ${config.name} 响应中未找到图片 URL`, {
-            code: "PROVIDER_PARSE_ERROR",
-            requestId: request_id,
-            details: { response: data },
-          });
+      if (hasEditInput(config.extraBody, payload)) {
+        try {
+          return await executeImagesEdit(client, config, payload, fetchImpl);
+        } catch {
+          return executeChatCompletion(client, config, payload);
         }
-
-        return {
-          imageUrl,
-          requestId: request_id,
-        };
-      } catch (error) {
-        if (error instanceof ProviderError) {
-          throw error;
-        }
-        mapSDKError(error, config.name);
       }
+
+      return executeChatCompletion(client, config, payload);
     },
   };
 }

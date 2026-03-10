@@ -82,6 +82,8 @@ const T = {
     arrow_hint: "↑↓ 选择，Enter 确认",
     step_lang: "选择语言 / Select Language",
     step_env: "检查环境...",
+    step_agents: "检测 Agent...",
+    step_target: "选择配置目标...",
     step_character: "选择角色...",
     step_proactive: "配置主动发图...",
     proactive_enable: "主动发图：若溪会在日常聊天中随机发自拍表示关心",
@@ -94,6 +96,7 @@ const T = {
     proactive_done: "主动发图配置完成",
     step_provider: "选择图像生成服务...",
     step_config: "配置服务参数...",
+    step_multi_agent: "配置多 Agent 覆写...",
     step_install: "安装插件...",
     step_done: "安装完成!",
     no_openclaw: "未找到 openclaw CLI",
@@ -121,6 +124,7 @@ const T = {
     summary_ready: "ClawMate Companion 已就绪!",
     summary_path: "插件路径:",
     summary_provider: "图像服务:",
+    summary_target: "配置目标:",
     summary_config: "配置文件:",
     summary_repo: "项目仓库:",
     summary_star: "⭐ 如果这个项目对你有帮助，请给我们一个 Star！⭐",
@@ -131,10 +135,44 @@ const T = {
     summary_manage: "插件管理:",
     summary_create_char: "创建自定义角色:",
     summary_create_ex: "帮我创建一个新角色，她是一个[描述职业/性格/背景]",
+    summary_multi_agent: "多 Agent:",
     fail: "安装失败:",
     skip: "跳过，稍后再配置",
     skipped: "已跳过",
     character_create_hint: "没有想要的角色？安装完成后，对 Agent 说「帮我创建一个新角色，她是一个[描述角色职业/性格/背景]」即可通过对话自建。",
+    agents_found: "发现 {count} 个 Agent",
+    agent_default_tag: "默认",
+    agent_routes: "路由",
+    agent_workspace: "工作区",
+    multi_agent_intro: "检测到多个 Agent，可为每个 Agent 设置独立角色和图像服务。",
+    choose_target: "选择要配置的 Agent 或共享默认配置",
+    target_shared: "配置共享默认值",
+    target_agent_prefix: "单独配置 Agent",
+    selected_target: "配置目标",
+    target_done: "完成配置并安装",
+    target_configured_tag: "已配置",
+    target_shared_desc: "未单独配置的 Agent 会继承这里的默认值",
+    clear_shared_character: "清除共享角色（回退到内置默认）",
+    clear_shared_provider: "清除共享图像服务（回退到 Mock）",
+    clear_shared_proactive: "清除共享主动发图设置",
+    multi_agent_shared: "配置共享默认值",
+    multi_agent_character: "每个 Agent 单独选择角色",
+    multi_agent_character_provider: "每个 Agent 单独选择角色和图像服务",
+    use_global_character: "继承全局角色",
+    use_global_provider: "继承全局图像服务",
+    use_global_proactive: "继承共享主动发图",
+    choose_agent_character: "为 Agent 选择角色",
+    choose_agent_provider: "为 Agent 选择图像服务",
+    choose_agent_proactive: "为 Agent 配置主动发图",
+    multi_agent_shared_done: "将清除 Agent 级覆写，全部继承全局配置",
+    multi_agent_configured: "多 Agent 配置已生成",
+    configured_services: "已配置图像服务",
+    choose_existing_service: "选择已有图像服务",
+    create_new_service: "新建图像服务...",
+    reuse_service: "复用已有图像服务",
+    service_type: "服务类型",
+    service_model: "模型",
+    service_none: "暂无已配置图像服务",
     // providers
     p_aliyun: "阿里云百炼（有免费额度）",
     p_volcengine: "火山引擎 ARK（有免费额度）",
@@ -156,6 +194,8 @@ const T = {
     arrow_hint: "Up/Down to select, Enter to confirm",
     step_lang: "选择语言 / Select Language",
     step_env: "Checking environment...",
+    step_agents: "Detecting agents...",
+    step_target: "Choose config target...",
     step_character: "Select character...",
     step_proactive: "Configure proactive selfie...",
     proactive_enable: "Proactive selfie: character will randomly send selfies during chat",
@@ -168,6 +208,7 @@ const T = {
     proactive_done: "Proactive selfie configured",
     step_provider: "Select image generation service...",
     step_config: "Configure service parameters...",
+    step_multi_agent: "Configure multi-agent overrides...",
     step_install: "Installing plugin...",
     step_done: "Installation complete!",
     no_openclaw: "openclaw CLI not found",
@@ -195,6 +236,7 @@ const T = {
     summary_ready: "ClawMate Companion is ready!",
     summary_path: "Plugin path:",
     summary_provider: "Image service:",
+    summary_target: "Config target:",
     summary_config: "Config file:",
     summary_repo: "Repository:",
     summary_star: "⭐ If this project helps you, please give us a Star! ⭐",
@@ -205,10 +247,44 @@ const T = {
     summary_manage: "Plugin management:",
     summary_create_char: "Create a custom character:",
     summary_create_ex: "Help me create a new character, she is a [describe occupation/personality/background]",
+    summary_multi_agent: "Multi-agent:",
     fail: "Installation failed:",
     skip: "Skip, configure later",
     skipped: "Skipped",
     character_create_hint: "Don't see the character you want? After installation, tell your Agent \"help me create a new character, she is a [describe occupation/personality/background]\" to build one through conversation.",
+    agents_found: "Found {count} agents",
+    agent_default_tag: "default",
+    agent_routes: "Routes",
+    agent_workspace: "Workspace",
+    multi_agent_intro: "Multiple agents detected. You can assign a separate character and provider to each one.",
+    choose_target: "Choose an agent or the shared default configuration",
+    target_shared: "Configure shared defaults",
+    target_agent_prefix: "Configure agent",
+    selected_target: "Config target",
+    target_done: "Finish and install",
+    target_configured_tag: "configured",
+    target_shared_desc: "Agents without overrides will inherit these defaults",
+    clear_shared_character: "Clear shared character (use built-in default)",
+    clear_shared_provider: "Clear shared image service (fall back to Mock)",
+    clear_shared_proactive: "Clear shared proactive selfie setting",
+    multi_agent_shared: "Configure shared defaults",
+    multi_agent_character: "Choose a separate character for each agent",
+    multi_agent_character_provider: "Choose a separate character and provider for each agent",
+    use_global_character: "Inherit global character",
+    use_global_provider: "Inherit global provider",
+    use_global_proactive: "Inherit shared proactive selfie",
+    choose_agent_character: "Choose character for agent",
+    choose_agent_provider: "Choose provider for agent",
+    choose_agent_proactive: "Configure proactive selfie for agent",
+    multi_agent_shared_done: "Agent-scoped overrides will be cleared and all agents will inherit the global config",
+    multi_agent_configured: "Multi-agent overrides prepared",
+    configured_services: "Configured image services",
+    choose_existing_service: "Choose an existing image service",
+    create_new_service: "Create new image service...",
+    reuse_service: "Reuse an existing image service",
+    service_type: "Service type",
+    service_model: "Model",
+    service_none: "No image services configured yet",
     // providers
     p_aliyun: "Alibaba Cloud Bailian (free quota available)",
     p_volcengine: "Volcengine ARK (free quota available)",
@@ -421,6 +497,11 @@ function readJsonFile(filePath) {
   catch { return null; }
 }
 
+function parseJson(text) {
+  try { return JSON.parse(text); }
+  catch { return null; }
+}
+
 function writeJsonFile(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + "\n");
 }
@@ -437,13 +518,341 @@ function deepMerge(target, source) {
   return result;
 }
 
+function isPlainObject(value) {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function toRecord(value) {
+  return isPlainObject(value) ? value : {};
+}
+
 function readExistingPluginConfig() {
   const config = readJsonFile(OPENCLAW_CONFIG);
   return config?.plugins?.entries?.[PLUGIN_ID]?.config || null;
 }
 
+function runJsonCommand(command, timeout = 15000) {
+  try {
+    const output = execSync(command, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout,
+      windowsHide: true,
+    }).trim();
+    if (!output) {
+      return null;
+    }
+    return parseJson(output);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeAgents(rawAgents) {
+  if (!Array.isArray(rawAgents)) {
+    return [];
+  }
+
+  const seen = new Set();
+  const result = [];
+
+  for (const raw of rawAgents) {
+    const id = typeof raw === "string"
+      ? raw.trim()
+      : typeof raw?.id === "string"
+        ? raw.id.trim()
+        : "";
+    if (!id || seen.has(id)) {
+      continue;
+    }
+
+    const workspace = typeof raw?.workspace === "string" && raw.workspace.trim()
+      ? raw.workspace.trim()
+      : undefined;
+    const routes = Array.isArray(raw?.routes)
+      ? raw.routes.filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim())
+      : [];
+    const bindings = typeof raw?.bindings === "number" ? raw.bindings : undefined;
+    const isDefault = Boolean(raw?.isDefault);
+
+    result.push({ id, workspace, routes, bindings, isDefault });
+    seen.add(id);
+  }
+
+  return result.sort((a, b) => {
+    if (a.isDefault && !b.isDefault) return -1;
+    if (!a.isDefault && b.isDefault) return 1;
+    return a.id.localeCompare(b.id);
+  });
+}
+
+function discoverAgentsFromCli() {
+  return normalizeAgents(runJsonCommand("openclaw agents list --json"));
+}
+
+function discoverAgentsFromDirectory() {
+  const agentsDir = path.join(OPENCLAW_HOME, "agents");
+  if (!fs.existsSync(agentsDir)) {
+    return [];
+  }
+
+  const config = readJsonFile(OPENCLAW_CONFIG) || {};
+  const defaultWorkspace = config?.agents?.defaults?.workspace;
+  const rawAgents = fs.readdirSync(agentsDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => ({
+      id: entry.name,
+      workspace:
+        entry.name === "main" && typeof defaultWorkspace === "string" && defaultWorkspace.trim()
+          ? defaultWorkspace.trim()
+          : undefined,
+      isDefault: entry.name === "main",
+      routes: entry.name === "main" ? ["default (no explicit rules)"] : [],
+    }));
+
+  return normalizeAgents(rawAgents);
+}
+
+function discoverAgentsFromConfig() {
+  const config = readJsonFile(OPENCLAW_CONFIG) || {};
+  const list = config?.agents?.list;
+  const normalizedList = normalizeAgents(Array.isArray(list) ? list : []);
+  if (normalizedList.length > 0) {
+    return normalizedList;
+  }
+
+  const defaultWorkspace =
+    typeof config?.agents?.defaults?.workspace === "string" && config.agents.defaults.workspace.trim()
+      ? config.agents.defaults.workspace.trim()
+      : path.join(OPENCLAW_HOME, "workspace");
+
+  return normalizeAgents([{ id: "main", workspace: defaultWorkspace, isDefault: true }]);
+}
+
+function discoverAgents() {
+  const candidates = [
+    discoverAgentsFromCli(),
+    discoverAgentsFromDirectory(),
+    discoverAgentsFromConfig(),
+  ];
+
+  for (const agents of candidates) {
+    if (agents.length > 0) {
+      return agents;
+    }
+  }
+
+  return [{ id: "main", workspace: path.join(OPENCLAW_HOME, "workspace"), isDefault: true, routes: [] }];
+}
+
 function currentTag() {
   return c("green", lang === "en" ? " [current]" : " [当前]");
+}
+
+function replacePlaceholders(template, values) {
+  return Object.entries(values).reduce((text, [key, value]) => text.replace(`{${key}}`, String(value)), template);
+}
+
+function formatCharacterName(character) {
+  return lang === "en"
+    ? `${character.englishName || character.name}`
+    : `${character.name}${character.englishName ? ` (${character.englishName})` : ""}`;
+}
+
+function getCharacterLabel(characterId, characters = loadCharacters()) {
+  if (!characterId) {
+    return "brooke";
+  }
+  const matched = characters.find((character) => character.id === characterId);
+  return matched ? formatCharacterName(matched) : characterId;
+}
+
+function getProviderLabel(providerKey) {
+  if (!providerKey) {
+    return "mock";
+  }
+  return getProviders()[providerKey]?.label || providerKey;
+}
+
+function resolveEffectiveValue(selectedValue, existingValue, fallbackValue) {
+  if (selectedValue !== null && selectedValue !== undefined) {
+    return selectedValue;
+  }
+  if (existingValue !== undefined && existingValue !== null && existingValue !== "") {
+    return existingValue;
+  }
+  return fallbackValue;
+}
+
+function formatAgentSummary(agent) {
+  const detailParts = [];
+  if (agent.isDefault) {
+    detailParts.push(t("agent_default_tag"));
+  }
+  if (typeof agent.bindings === "number") {
+    detailParts.push(lang === "en" ? `${agent.bindings} bindings` : `${agent.bindings} 条绑定`);
+  }
+
+  const lines = [];
+  const header = detailParts.length > 0 ? `${agent.id} ${c("dim", `[${detailParts.join(", ")}]`)}` : agent.id;
+  lines.push(header);
+
+  if (Array.isArray(agent.routes) && agent.routes.length > 0) {
+    lines.push(`  ${c("dim", `${t("agent_routes")}: ${agent.routes.join("; ")}`)}`);
+  }
+  if (agent.workspace) {
+    lines.push(`  ${c("dim", `${t("agent_workspace")}: ${agent.workspace}`)}`);
+  }
+
+  return lines;
+}
+
+function normalizeProactiveSelfieConfig(value) {
+  return {
+    enabled: Boolean(value?.enabled),
+    probability:
+      typeof value?.probability === "number" && Number.isFinite(value.probability)
+        ? value.probability
+        : 0.1,
+  };
+}
+
+function formatProactiveSelfieLabel(value) {
+  const config = normalizeProactiveSelfieConfig(value);
+  if (!config.enabled) {
+    return t("proactive_no");
+  }
+
+  if (config.probability <= 0.1) {
+    return `${t("proactive_yes")} (${t("proactive_low")})`;
+  }
+  if (config.probability <= 0.2) {
+    return `${t("proactive_yes")} (${t("proactive_mid")})`;
+  }
+  return `${t("proactive_yes")} (${t("proactive_high")})`;
+}
+
+function getConfiguredProviderEntries(pluginConfig) {
+  const providers = toRecord(pluginConfig?.providers);
+  return Object.entries(providers)
+    .filter(([, value]) => isPlainObject(value))
+    .map(([key, value]) => ({
+      key,
+      type: typeof value.type === "string" && value.type.trim() ? value.type.trim() : key,
+      model: typeof value.model === "string" && value.model.trim() ? value.model.trim() : "",
+    }))
+    .sort((a, b) => a.key.localeCompare(b.key));
+}
+
+function formatConfiguredProviderLabel(entry) {
+  const providerLabel = getProviders()[entry.type]?.label || entry.type || entry.key;
+  const parts = [`${entry.key}`, c("dim", `— ${providerLabel}`)];
+  if (entry.model) {
+    parts.push(c("dim", `(${t("service_model")}: ${entry.model})`));
+  }
+  return parts.join(" ");
+}
+
+function getScopeTargetLabel(scope) {
+  return scope?.type === "agent" ? `${t("target_agent_prefix")}: ${scope.agentId}` : t("target_shared");
+}
+
+function hasManagedAgentOverrides(agentConfig) {
+  const config = toRecord(agentConfig);
+  return (
+    Object.prototype.hasOwnProperty.call(config, "selectedCharacter") ||
+    Object.prototype.hasOwnProperty.call(config, "defaultProvider") ||
+    Object.prototype.hasOwnProperty.call(config, "proactiveSelfie")
+  );
+}
+
+function buildConfigTargetMenu(agents, pluginConfig, allowFinish = false) {
+  const existing = toRecord(pluginConfig);
+  const sharedConfigured = (
+    typeof existing.selectedCharacter === "string" && existing.selectedCharacter.trim()
+  ) || (
+    typeof existing.defaultProvider === "string" && existing.defaultProvider.trim()
+  ) || existing.proactiveSelfie !== undefined;
+
+  const items = [];
+  const values = [];
+
+  if (allowFinish) {
+    items.push(c("dim", t("target_done")));
+    values.push({ type: "finish" });
+  }
+
+  const sharedLabel = sharedConfigured
+    ? `${t("target_shared")} ${c("dim", `[${t("target_configured_tag")}]`)}`
+    : t("target_shared");
+  items.push(sharedLabel);
+  values.push({ type: "shared" });
+
+  for (const agent of agents) {
+    const hasOverride = hasManagedAgentOverrides(toRecord(toRecord(existing.agents)[agent.id]));
+    const configuredTag = hasOverride ? ` ${c("dim", `[${t("target_configured_tag")}]`)}` : "";
+    items.push(`${t("target_agent_prefix")}: ${agent.id}${configuredTag}`);
+    values.push({ type: "agent", agentId: agent.id });
+  }
+
+  return { items, values };
+}
+
+function getSharedScopeDefaults(pluginConfig) {
+  const existing = toRecord(pluginConfig);
+  return {
+    selectedCharacter:
+      typeof existing.selectedCharacter === "string" && existing.selectedCharacter.trim()
+        ? existing.selectedCharacter.trim()
+        : "brooke",
+    defaultProvider:
+      typeof existing.defaultProvider === "string" && existing.defaultProvider.trim()
+        ? existing.defaultProvider.trim()
+        : "mock",
+    proactiveSelfie: normalizeProactiveSelfieConfig(existing.proactiveSelfie),
+    configured: {
+      selectedCharacter:
+        typeof existing.selectedCharacter === "string" && existing.selectedCharacter.trim().length > 0,
+      defaultProvider:
+        typeof existing.defaultProvider === "string" && existing.defaultProvider.trim().length > 0,
+      proactiveSelfie: existing.proactiveSelfie !== undefined,
+    },
+  };
+}
+
+function resolveScopeSettings(pluginConfig, scope) {
+  const existing = toRecord(pluginConfig);
+  const shared = getSharedScopeDefaults(existing);
+
+  if (!scope || scope.type !== "agent") {
+    return {
+      targetLabel: getScopeTargetLabel(scope),
+      currentCharacterId: shared.selectedCharacter,
+      currentProviderKey: shared.defaultProvider,
+      currentProactiveSelfie: shared.proactiveSelfie,
+      shared,
+      overrides: {},
+    };
+  }
+
+  const agentConfig = toRecord(toRecord(existing.agents)[scope.agentId]);
+  return {
+    targetLabel: getScopeTargetLabel(scope),
+    currentCharacterId:
+      typeof agentConfig.selectedCharacter === "string" && agentConfig.selectedCharacter.trim()
+        ? agentConfig.selectedCharacter.trim()
+        : shared.selectedCharacter,
+    currentProviderKey:
+      typeof agentConfig.defaultProvider === "string" && agentConfig.defaultProvider.trim()
+        ? agentConfig.defaultProvider.trim()
+        : shared.defaultProvider,
+    currentProactiveSelfie:
+      agentConfig.proactiveSelfie !== undefined
+        ? normalizeProactiveSelfieConfig(agentConfig.proactiveSelfie)
+        : shared.proactiveSelfie,
+    shared,
+    overrides: agentConfig,
+  };
 }
 
 function openBrowser(url) {
@@ -616,120 +1025,212 @@ function loadCharacters() {
   return result;
 }
 
-async function chooseCharacter() {
-  logStep("2/6", t("step_character"));
-  logInfo(t("character_create_hint"));
+async function chooseConfigTarget(agents, pluginConfig, options = {}) {
+  if (!Array.isArray(agents) || agents.length <= 1) {
+    return { type: "shared" };
+  }
 
-  const existing = readExistingPluginConfig();
-  const currentCharId = existing?.selectedCharacter;
+  logStep("2/6", t("step_target"));
+  logInfo(t("choose_target"));
+  logInfo(t("target_shared_desc"));
+  for (const agent of agents) {
+    const [header, ...rest] = formatAgentSummary(agent);
+    log(`  ${header}`);
+    for (const line of rest) {
+      log(line);
+    }
+  }
+
+  const menu = buildConfigTargetMenu(agents, pluginConfig, options.allowFinish);
+  const selectedIndex = await arrowSelect(menu.items, {
+    title: `  ${c("dim", t("arrow_hint"))}`,
+    initialIndex: 0,
+  });
+
+  const selected = menu.values[selectedIndex] || { type: "finish" };
+  if (selected.type === "shared") {
+    logSuccess(`${t("selected_target")} ${t("target_shared")}`);
+    return selected;
+  }
+  if (selected.type === "agent") {
+    logSuccess(`${t("selected_target")} ${selected.agentId}`);
+    return selected;
+  }
+
+  logSuccess(t("target_done"));
+  return selected;
+}
+
+async function chooseCharacterSelection(scope, settings) {
+  logStep("3/6", t("step_character"));
+  logInfo(t("character_create_hint"));
 
   const characters = loadCharacters();
   if (characters.length === 0) {
     logWarn("No characters found, using default.");
-    return "brooke";
+    return { mode: "set", value: "brooke" };
   }
 
-  const items = characters.map((ch) => {
-    const name = lang === "en"
-      ? `${ch.englishName || ch.name}`
-      : `${ch.name}${ch.englishName ? ` (${ch.englishName})` : ""}`;
-    const desc = lang === "en" ? ch.descriptionEn : ch.descriptionZh;
-    const tag = ch._builtIn ? "" : c("yellow", " [自定义]");
-    const cur = ch.id === currentCharId ? currentTag() : "";
-    return desc ? `${name}${tag}${cur}  ${c("dim", `— ${desc}`)}` : `${name}${tag}${cur}`;
+  const allowInherit = scope?.type === "agent" && settings.shared.configured.selectedCharacter;
+  const items = [];
+  const values = [];
+
+  if (allowInherit) {
+    items.push(`${t("use_global_character")}: ${getCharacterLabel(settings.shared.selectedCharacter, characters)}${
+      !settings.overrides.selectedCharacter ? currentTag() : ""
+    }`);
+    values.push({ mode: "inherit" });
+  }
+
+  if (scope?.type === "shared" && settings.shared.configured.selectedCharacter) {
+    items.push(t("clear_shared_character"));
+    values.push({ mode: "clear" });
+  }
+
+  for (const character of characters) {
+    const tag = character._builtIn ? "" : c("yellow", " [自定义]");
+    const isCurrent =
+      settings.currentCharacterId === character.id &&
+      (
+        scope?.type !== "agent" ||
+        settings.overrides.selectedCharacter === character.id ||
+        (!allowInherit && !settings.overrides.selectedCharacter)
+      );
+    const desc = lang === "en" ? character.descriptionEn : character.descriptionZh;
+    const name = formatCharacterName(character);
+    items.push(desc ? `${name}${tag}${isCurrent ? currentTag() : ""}  ${c("dim", `— ${desc}`)}` : `${name}${tag}${isCurrent ? currentTag() : ""}`);
+    values.push({ mode: "set", value: character.id });
+  }
+
+  items.push(c("dim", `↩  ${t("skip")}`));
+  values.push({ mode: "skip" });
+
+  const initialIndex = Math.max(0, values.findIndex((item) => {
+    if (item.mode === "inherit") {
+      return !settings.overrides.selectedCharacter;
+    }
+    return item.mode === "set" && item.value === settings.currentCharacterId;
+  }));
+
+  const selectedIndex = await arrowSelect(items, {
+    title: `  ${c("dim", t("arrow_hint"))}`,
+    initialIndex,
   });
 
-  const initialIndex = currentCharId ? Math.max(0, characters.findIndex((ch) => ch.id === currentCharId)) : 0;
-  const skipLabel = c("dim", `↩  ${t("skip")}`);
-  const allItems = [...items, skipLabel];
-  const index = await arrowSelect(allItems, { title: `  ${c("dim", t("arrow_hint"))}`, initialIndex });
-  if (index === characters.length) {
+  const selection = values[selectedIndex] || { mode: "skip" };
+  if (selection.mode === "set") {
+    logSuccess(`${t("selected")} ${getCharacterLabel(selection.value, characters)}`);
+  } else if (selection.mode === "inherit") {
+    logSuccess(`${t("selected")} ${t("use_global_character")}`);
+  } else if (selection.mode === "clear") {
+    logSuccess(`${t("selected")} ${t("clear_shared_character")}`);
+  } else {
     logInfo(t("skipped"));
-    return null;
   }
-  const selected = characters[index];
-  logSuccess(`${t("selected")} ${selected.name}${selected.englishName ? ` (${selected.englishName})` : ""}`);
-  return selected.id;
+  return selection;
 }
 
-// ── Step 3: Choose provider ─────────────────────────────────────────────────
-async function chooseProvider() {
-  logStep("4/6", t("step_provider"));
-  logInfo(t("provider_recommend"));
-
-  const existing = readExistingPluginConfig();
-  const currentProvider = existing?.defaultProvider;
-
-  const providers = getProviders();
-  const providerKeys = Object.keys(providers);
-  const items = providerKeys.map((key) =>
-    `${providers[key].label}${key === currentProvider ? currentTag() : ""}`
-  );
-  items.push(c("dim", `↩  ${t("skip")}`));
-
-  const initialIndex = currentProvider ? Math.max(0, providerKeys.indexOf(currentProvider)) : 0;
-  const index = await arrowSelect(items, { title: `  ${c("dim", t("arrow_hint"))}`, initialIndex });
-
-  if (index === providerKeys.length) {
-    logInfo(t("skipped"));
-    return null;
-  }
-
-  const selectedKey = providerKeys[index];
-  logSuccess(`${t("selected")} ${providers[selectedKey].label}`);
-  return selectedKey;
-}
-
-// ── Step 2.5: Configure proactive selfie ────────────────────────────────────
-async function configureProactiveSelfie() {
-  logStep("3/6", t("step_proactive"));
+async function configureProactiveSelfieSelection(scope, settings) {
+  logStep("4/6", t("step_proactive"));
   logInfo(t("proactive_enable"));
 
-  const existing = readExistingPluginConfig();
-  const currentEnabled = existing?.proactiveSelfie?.enabled ?? false;
-  const currentProb = existing?.proactiveSelfie?.probability ?? 0.1;
+  const allowInherit = scope?.type === "agent" && settings.shared.configured.proactiveSelfie;
+  const current = normalizeProactiveSelfieConfig(settings.currentProactiveSelfie);
+  const shared = normalizeProactiveSelfieConfig(settings.shared.proactiveSelfie);
+  const values = [];
+  const items = [];
 
-  const freqValues = [0.1, 0.2, 0.3];
-  const enableItems = [
-    `${t("proactive_no")}${!currentEnabled ? currentTag() : ""}`,
-    `${t("proactive_yes")}${currentEnabled ? currentTag() : ""}`,
-    c("dim", `↩  ${t("skip")}`),
-  ];
-  const enableIndex = await arrowSelect(enableItems, {
+  if (allowInherit) {
+    items.push(`${t("use_global_proactive")}: ${formatProactiveSelfieLabel(shared)}${
+      settings.overrides.proactiveSelfie === undefined ? currentTag() : ""
+    }`);
+    values.push({ mode: "inherit" });
+  }
+
+  if (scope?.type === "shared" && settings.shared.configured.proactiveSelfie) {
+    items.push(t("clear_shared_proactive"));
+    values.push({ mode: "clear" });
+  }
+
+  items.push(`${t("proactive_no")}${!current.enabled && (!allowInherit || settings.overrides.proactiveSelfie !== undefined) ? currentTag() : ""}`);
+  values.push({ mode: "set", value: { enabled: false, probability: 0.1 } });
+
+  items.push(`${t("proactive_yes")}${current.enabled ? currentTag() : ""}`);
+  values.push({ mode: "enable" });
+
+  items.push(c("dim", `↩  ${t("skip")}`));
+  values.push({ mode: "skip" });
+
+  const initialIndex = Math.max(0, values.findIndex((item) => {
+    if (item.mode === "inherit") {
+      return settings.overrides.proactiveSelfie === undefined;
+    }
+    if (item.mode === "set") {
+      return !current.enabled;
+    }
+    if (item.mode === "enable") {
+      return current.enabled;
+    }
+    return false;
+  }));
+
+  const enableIndex = await arrowSelect(items, {
     title: `  ${c("dim", t("arrow_hint"))}`,
-    initialIndex: currentEnabled ? 1 : 0,
+    initialIndex,
   });
 
-  if (enableIndex === 2) {
+  const selection = values[enableIndex] || { mode: "skip" };
+  if (selection.mode === "skip" || selection.mode === "inherit" || selection.mode === "set" || selection.mode === "clear") {
+    if (selection.mode === "inherit") {
+      logSuccess(`${t("selected")} ${t("use_global_proactive")}`);
+    } else if (selection.mode === "clear") {
+      logSuccess(`${t("selected")} ${t("clear_shared_proactive")}`);
+    } else if (selection.mode === "set") {
+      logSuccess(`${t("selected")} ${t("proactive_no")}`);
+    } else {
+      logInfo(t("skipped"));
+    }
+    return selection;
+  }
+
+  const freqValues = [0.1, 0.2, 0.3];
+  const currentFreqIndex = freqValues.indexOf(current.probability);
+  const freqItems = [t("proactive_low"), t("proactive_mid"), t("proactive_high")].map((label, i) =>
+    `${label}${current.enabled && i === currentFreqIndex ? currentTag() : ""}`
+  );
+  const freqIndex = await arrowSelect(freqItems, {
+    title: `  ${t("proactive_freq")}\n  ${c("dim", t("arrow_hint"))}`,
+    initialIndex: current.enabled && currentFreqIndex >= 0 ? currentFreqIndex : 0,
+  });
+
+  const result = { mode: "set", value: { enabled: true, probability: freqValues[freqIndex] } };
+  logSuccess(`${t("proactive_done")} (${result.value.probability})`);
+  return result;
+}
+
+async function chooseProviderType(currentType) {
+  const providers = getProviders();
+  const providerKeys = Object.keys(providers);
+  const items = providerKeys.map((key) => `${providers[key].label}${key === currentType ? currentTag() : ""}`);
+  items.push(c("dim", `↩  ${t("skip")}`));
+
+  const initialIndex = currentType ? Math.max(0, providerKeys.indexOf(currentType)) : 0;
+  const selectedIndex = await arrowSelect(items, {
+    title: `  ${c("dim", t("arrow_hint"))}`,
+    initialIndex,
+  });
+
+  if (selectedIndex === providerKeys.length) {
     logInfo(t("skipped"));
     return null;
   }
 
-  if (enableIndex === 0) {
-    logSuccess(`${t("selected")} ${t("proactive_no")}`);
-    return { enabled: false, probability: 0.1 };
-  }
-
-  const currentFreqIndex = freqValues.indexOf(currentProb);
-  const freqItems = [t("proactive_low"), t("proactive_mid"), t("proactive_high")].map((label, i) =>
-    `${label}${i === currentFreqIndex ? currentTag() : ""}`
-  );
-
-  const freqIndex = await arrowSelect(freqItems, {
-    title: `  ${t("proactive_freq")}\n  ${c("dim", t("arrow_hint"))}`,
-    initialIndex: currentFreqIndex >= 0 ? currentFreqIndex : 0,
-  });
-
-  const probability = freqValues[freqIndex];
-  logSuccess(`${t("proactive_done")} (${probability})`);
-  return { enabled: true, probability };
+  const providerType = providerKeys[selectedIndex];
+  logSuccess(`${t("selected")} ${providers[providerType].label}`);
+  return providerType;
 }
 
-
-async function collectProviderConfig(providerKey) {
-  const existing = readExistingPluginConfig();
-  const existingProviderConfig = existing?.providers?.[providerKey] || {};
-
+async function collectProviderConfig(providerKey, existingProviderConfig = {}) {
   const providers = getProviders();
   const provider = providers[providerKey];
   const answers = {};
@@ -742,7 +1243,6 @@ async function collectProviderConfig(providerKey) {
   for (const field of provider.fields) {
     const existingValue = existingProviderConfig[field.key];
 
-    // Open browser for fal.ai
     if (providerKey === "fal" && field.key === "apiKey") {
       const openIt = await ask(t("fal_open"));
       if (openIt.toLowerCase() !== "n") {
@@ -751,17 +1251,14 @@ async function collectProviderConfig(providerKey) {
       log("");
     }
 
-    // Choice-based field
     if (field.choices) {
-      const items = field.choices.map((ch) =>
-        `${ch.label}${ch.value === existingValue ? currentTag() : ""}`
-      );
+      const items = field.choices.map((choice) => `${choice.label}${choice.value === existingValue ? currentTag() : ""}`);
       if (field.allowCustom) {
         items.push(t("custom_input"));
       }
 
       log(`\n  ${field.prompt}:`);
-      const currentChoiceIndex = existingValue ? field.choices.findIndex((ch) => ch.value === existingValue) : -1;
+      const currentChoiceIndex = existingValue ? field.choices.findIndex((choice) => choice.value === existingValue) : -1;
       const choiceIndex = await arrowSelect(items, {
         title: `  ${c("dim", t("arrow_hint"))}`,
         initialIndex: currentChoiceIndex >= 0 ? currentChoiceIndex : 0,
@@ -781,7 +1278,6 @@ async function collectProviderConfig(providerKey) {
       continue;
     }
 
-    // Simple text field — show existing value as default
     const effectiveDefault = existingValue || field.default || "";
     let prompt = `${field.prompt}`;
     if (field.hint) {
@@ -807,11 +1303,179 @@ async function collectProviderConfig(providerKey) {
   return config;
 }
 
+async function chooseProviderSelection(scope, pluginConfig, settings) {
+  logStep("5/6", t("step_provider"));
+  logInfo(t("provider_recommend"));
+
+  const configuredProviders = getConfiguredProviderEntries(pluginConfig);
+  const allowInherit = scope?.type === "agent" && settings.shared.configured.defaultProvider;
+  const items = [];
+  const values = [];
+
+  if (allowInherit) {
+    items.push(`${t("use_global_provider")}: ${getProviderLabel(settings.shared.defaultProvider)}${
+      !settings.overrides.defaultProvider ? currentTag() : ""
+    }`);
+    values.push({ mode: "inherit" });
+  }
+
+  if (scope?.type === "shared" && settings.shared.configured.defaultProvider) {
+    items.push(t("clear_shared_provider"));
+    values.push({ mode: "clear" });
+  }
+
+  for (const entry of configuredProviders) {
+    const isCurrent =
+      settings.currentProviderKey === entry.key &&
+      (
+        scope?.type !== "agent" ||
+        settings.overrides.defaultProvider === entry.key ||
+        (!allowInherit && !settings.overrides.defaultProvider)
+      );
+    items.push(`${formatConfiguredProviderLabel(entry)}${isCurrent ? currentTag() : ""}`);
+    values.push({ mode: "set", providerKey: entry.key });
+  }
+
+  items.push(t("create_new_service"));
+  values.push({ mode: "create" });
+
+  items.push(c("dim", `↩  ${t("skip")}`));
+  values.push({ mode: "skip" });
+
+  const initialIndex = Math.max(0, values.findIndex((item) => {
+    if (item.mode === "inherit") {
+      return !settings.overrides.defaultProvider;
+    }
+    return item.mode === "set" && item.providerKey === settings.currentProviderKey;
+  }));
+
+  const selectedIndex = await arrowSelect(items, {
+    title: `  ${c("dim", t("arrow_hint"))}`,
+    initialIndex,
+  });
+  const selection = values[selectedIndex] || { mode: "skip" };
+
+  if (selection.mode === "skip" || selection.mode === "inherit" || selection.mode === "set" || selection.mode === "clear") {
+    if (selection.mode === "inherit") {
+      logSuccess(`${t("selected")} ${t("use_global_provider")}`);
+    } else if (selection.mode === "clear") {
+      logSuccess(`${t("selected")} ${t("clear_shared_provider")}`);
+    } else if (selection.mode === "set") {
+      logSuccess(`${t("selected")} ${selection.providerKey}`);
+    } else {
+      logInfo(t("skipped"));
+    }
+    return { selection, providerConfigs: {} };
+  }
+
+  log(`\n  ${t("service_type")}:`);
+  const providerType = await chooseProviderType(settings.currentProviderKey);
+  if (!providerType) {
+    return { selection: { mode: "skip" }, providerConfigs: {} };
+  }
+
+  const existingProviders = toRecord(pluginConfig?.providers);
+  const providerConfig = await collectProviderConfig(providerType, toRecord(existingProviders[providerType]));
+  if (!providerConfig) {
+    return null;
+  }
+
+  return {
+    selection: { mode: "set", providerKey: providerType },
+    providerConfigs: { [providerType]: providerConfig },
+  };
+}
+
+function clearManagedAgentFields(agentConfig) {
+  const next = { ...toRecord(agentConfig) };
+  delete next.selectedCharacter;
+  delete next.defaultProvider;
+  delete next.proactiveSelfie;
+  return next;
+}
+
+function buildPluginConfig(existingConfig, options) {
+  const existing = toRecord(existingConfig);
+  const nextConfig = { ...existing };
+
+  nextConfig.userCharacterRoot = options.defaultUserCharacterRoot;
+  if (!nextConfig.fallback) {
+    nextConfig.fallback = { enabled: false, order: [] };
+  }
+  if (!nextConfig.retry) {
+    nextConfig.retry = { maxAttempts: 2, backoffMs: 1000 };
+  }
+
+  const mergedProviders = {
+    ...toRecord(existing.providers),
+    ...toRecord(options.providerConfigs),
+  };
+  if (Object.keys(mergedProviders).length > 0) {
+    nextConfig.providers = mergedProviders;
+  }
+
+  if (options.scope?.type === "shared") {
+    if (options.characterSelection?.mode === "set") {
+      nextConfig.selectedCharacter = options.characterSelection.value;
+    } else if (options.characterSelection?.mode === "clear") {
+      delete nextConfig.selectedCharacter;
+    }
+    if (options.providerSelection?.mode === "set") {
+      nextConfig.defaultProvider = options.providerSelection.providerKey;
+    } else if (options.providerSelection?.mode === "clear") {
+      delete nextConfig.defaultProvider;
+    }
+    if (options.proactiveSelection?.mode === "set") {
+      nextConfig.proactiveSelfie = options.proactiveSelection.value;
+    } else if (options.proactiveSelection?.mode === "clear") {
+      delete nextConfig.proactiveSelfie;
+    }
+
+    return nextConfig;
+  }
+
+  if (options.scope?.type === "agent") {
+    const nextAgents = { ...toRecord(existing.agents) };
+    const currentOverride = { ...toRecord(nextAgents[options.scope.agentId]) };
+
+    if (options.characterSelection?.mode === "inherit") {
+      delete currentOverride.selectedCharacter;
+    } else if (options.characterSelection?.mode === "set") {
+      currentOverride.selectedCharacter = options.characterSelection.value;
+    }
+
+    if (options.providerSelection?.mode === "inherit") {
+      delete currentOverride.defaultProvider;
+    } else if (options.providerSelection?.mode === "set") {
+      currentOverride.defaultProvider = options.providerSelection.providerKey;
+    }
+
+    if (options.proactiveSelection?.mode === "inherit") {
+      delete currentOverride.proactiveSelfie;
+    } else if (options.proactiveSelection?.mode === "set") {
+      currentOverride.proactiveSelfie = options.proactiveSelection.value;
+    }
+
+    if (Object.keys(currentOverride).length > 0) {
+      nextAgents[options.scope.agentId] = currentOverride;
+    } else {
+      delete nextAgents[options.scope.agentId];
+    }
+
+    if (Object.keys(nextAgents).length > 0) {
+      nextConfig.agents = nextAgents;
+    } else {
+      delete nextConfig.agents;
+    }
+  }
+
+  return nextConfig;
+}
+
 // ── Step 4: Install plugin ──────────────────────────────────────────────────
-async function installPlugin(providerKey, providerConfig, characterId, proactiveSelfie) {
+async function installPlugin(pluginConfig) {
   logStep("5/6", t("step_install"));
-  const defaultUserCharacterRoot = path.join(OPENCLAW_HOME, "clawmeta");
-  fs.mkdirSync(defaultUserCharacterRoot, { recursive: true });
+  fs.mkdirSync(pluginConfig.userCharacterRoot, { recursive: true });
 
   // If running from npx temp dir, copy plugin to persistent location
   const pluginPath = resolvePluginInstallPath();
@@ -836,27 +1500,15 @@ async function installPlugin(providerKey, providerConfig, characterId, proactive
   // Update openclaw.json with provider config — only write non-skipped fields
   let config = readJsonFile(OPENCLAW_CONFIG) || {};
 
-  const pluginEntry = { enabled: true, config: {} };
+  config.plugins = toRecord(config.plugins);
+  config.plugins.entries = toRecord(config.plugins.entries);
+  const existingEntry = toRecord(config.plugins.entries[PLUGIN_ID]);
+  config.plugins.entries[PLUGIN_ID] = {
+    ...existingEntry,
+    enabled: true,
+    config: pluginConfig,
+  };
 
-  if (characterId !== null) pluginEntry.config.selectedCharacter = characterId;
-  if (providerKey !== null) {
-    pluginEntry.config.defaultProvider = providerKey;
-    pluginEntry.config.providers = { [providerKey]: providerConfig };
-  }
-  if (proactiveSelfie !== null) pluginEntry.config.proactiveSelfie = proactiveSelfie;
-  // Always keep user-created characters in OPENCLAW_HOME/clawmeta to avoid plugin-update overwrite.
-  pluginEntry.config.userCharacterRoot = defaultUserCharacterRoot;
-
-  // Always write fallback/retry defaults if not already present
-  if (!config?.plugins?.entries?.[PLUGIN_ID]?.config?.fallback) {
-    pluginEntry.config.fallback = { enabled: false, order: [] };
-  }
-  if (!config?.plugins?.entries?.[PLUGIN_ID]?.config?.retry) {
-    pluginEntry.config.retry = { maxAttempts: 2, backoffMs: 1000 };
-  }
-
-  const pluginConfig = { plugins: { entries: { [PLUGIN_ID]: pluginEntry } } };
-  config = deepMerge(config, pluginConfig);
   writeJsonFile(OPENCLAW_CONFIG, config);
   logSuccess(`${t("config_written")} ${OPENCLAW_CONFIG}`);
 
@@ -864,11 +1516,12 @@ async function installPlugin(providerKey, providerConfig, characterId, proactive
 }
 
 // ── Step 5: Summary ─────────────────────────────────────────────────────────
-function printSummary(providerKey, pluginPath) {
+function printSummary(pluginConfig, pluginPath, scope) {
   logStep("6/6", t("step_done"));
 
-  const providers = getProviders();
-  const providerLabel = providerKey ? (providers[providerKey]?.label || providerKey) : c("dim", t("skipped"));
+  const settings = resolveScopeSettings(pluginConfig, scope);
+  const providerLabel = getProviderLabel(settings.currentProviderKey);
+  const targetLabel = getScopeTargetLabel(scope);
 
   console.log(`
 ${c("green", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")}
@@ -880,6 +1533,9 @@ ${c("cyan", t("summary_path"))}
 
 ${c("cyan", t("summary_provider"))}
   ${providerLabel}
+
+${c("cyan", t("summary_target"))}
+  ${targetLabel}
 
 ${c("cyan", t("summary_config"))}
   ${OPENCLAW_CONFIG}
@@ -923,28 +1579,51 @@ async function main() {
       }
     }
 
-    // Step 2: character selection
-    const characterId = await chooseCharacter();
+    logStep("1.5/6", t("step_agents"));
+    const discoveredAgents = discoverAgents();
+    logSuccess(replacePlaceholders(t("agents_found"), { count: discoveredAgents.length }));
 
-    // Step 3: proactive selfie
-    const proactiveSelfie = await configureProactiveSelfie();
+    const existingConfig = readExistingPluginConfig() || {};
+    let workingConfig = existingConfig;
+    let lastConfiguredScope = Array.isArray(discoveredAgents) && discoveredAgents.length <= 1
+      ? { type: "shared" }
+      : null;
 
-    // Step 4: provider selection
-    const providerKey = await chooseProvider();
+    while (true) {
+      const scope = await chooseConfigTarget(discoveredAgents, workingConfig, {
+        allowFinish: lastConfiguredScope !== null,
+      });
+      if (scope.type === "finish") {
+        break;
+      }
 
-    // Step 5: provider config (skip if provider was skipped)
-    let providerConfig = null;
-    if (providerKey !== null) {
-      providerConfig = await collectProviderConfig(providerKey);
-      if (!providerConfig) {
+      const settings = resolveScopeSettings(workingConfig, scope);
+      const characterSelection = await chooseCharacterSelection(scope, settings);
+      const proactiveSelection = await configureProactiveSelfieSelection(scope, settings);
+      const providerResult = await chooseProviderSelection(scope, workingConfig, settings);
+      if (!providerResult) {
         process.exit(1);
+      }
+
+      workingConfig = buildPluginConfig(workingConfig, {
+        scope,
+        characterSelection,
+        proactiveSelection,
+        providerSelection: providerResult.selection,
+        providerConfigs: providerResult.providerConfigs,
+        defaultUserCharacterRoot: path.join(OPENCLAW_HOME, "clawmeta"),
+      });
+      lastConfiguredScope = scope;
+
+      if (!Array.isArray(discoveredAgents) || discoveredAgents.length <= 1) {
+        break;
       }
     }
 
-    // Step 6: install
-    const pluginPath = await installPlugin(providerKey, providerConfig, characterId, proactiveSelfie);
+    const finalPluginConfig = workingConfig;
+    const pluginPath = await installPlugin(finalPluginConfig);
 
-    printSummary(providerKey, pluginPath);
+    printSummary(finalPluginConfig, pluginPath, lastConfiguredScope ?? { type: "shared" });
   } catch (error) {
     logError(`${t("fail")} ${error.message}`);
     console.error(error);
@@ -952,4 +1631,15 @@ async function main() {
   }
 }
 
-main();
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  __testing: {
+    buildPluginConfig,
+    buildConfigTargetMenu,
+    normalizeAgents,
+    resolveScopeSettings,
+  },
+};
