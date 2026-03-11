@@ -11,12 +11,43 @@ ClawMate is an OpenClaw visual companion plugin that generates personalized char
 ### Setup and Installation
 ```bash
 # One-click install (interactive, no clone needed)
-npx github:BytePioneer-AI/clawmate
+npx @clawmate/clawmate
 
 # Local install (after clone)
 npm install
 npm run clawmate:setup
+
+# One-click patch release
+npm run release:patch
 ```
+
+Install notes:
+- `npx @clawmate/clawmate` is the official npm install path.
+- It is functionally the same installer flow as `npx github:BytePioneer-AI/clawmate`; only the distribution source changes.
+- Re-running the install command prompts before reinstalling/updating existing ClawMate config instead of silently overwriting it.
+
+### Release Commands
+```bash
+# Bug fix release: x.y.z -> x.y.(z+1)
+npm run release:patch
+
+# Feature release: x.y.z -> x.(y+1).0
+npm run release:minor
+
+# Breaking release: x.y.z -> (x+1).0.0
+npm run release:major
+
+# Publish a specific version
+npm run release -- 0.1.1 --publish
+
+# Preview next patch version without changing files
+npm run release -- patch --dry-run
+```
+
+The release script syncs versions in:
+- `package.json`
+- `packages/clawmate-companion/package.json`
+- `packages/clawmate-companion/openclaw.plugin.json`
 
 ### Testing and Development
 ```bash

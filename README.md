@@ -28,9 +28,9 @@
 
 ## 开发计划
 
-- [✅️] **更多角色** — 添加不同性格和背景的内置角色
-- [✅️] **多 Agent 支持** — 多 Agent 场景下支持按 Agent 单独配置
-- [✅️] **语音交互** — 角色语音合成，支持语音对话
+- ✅️ **更多角色** — 添加不同性格和背景的内置角色
+- ✅️ **多 Agent 支持** — 多 Agent 场景下支持按 Agent 单独配置
+- ✅️ **语音交互** — 角色语音合成，支持语音对话
 - [ ] **视频生成** — 短视频片段和动态表情
 - [ ] **社区角色** — 角色分享和下载平台
 
@@ -77,7 +77,7 @@
 首次安装与后续更新使用同一命令：
 
 ```bash
-npx github:BytePioneer-AI/clawmate
+npx @clawmate/clawmate
 ```
 
 交互式安装向导会引导你完成角色选择、主动发图配置、语音配置和图像服务配置；多 Agent 场景下也支持只配置某个 Agent。
@@ -107,9 +107,6 @@ cd clawmate
 npm install
 npm run clawmate:setup
 ```
-
-多 Agent 设计方案见 [doc/multi-agent-design.md](doc/multi-agent-design.md)。
-
 多 Agent 配置示例：
 
 ```json
@@ -131,19 +128,6 @@ npm run clawmate:setup
 
 插件会按当前 Agent 的 `workspace` 分别写入各自的 `SOUL.md`，不会再共用同一份人格文件。
 
-## 语音生成链路
-
-当前语音不是简单的“把文本朗读出来”，而是由 Agent 基于角色人格和 TTS skill 判断，这一条回复是否更适合用短语音表达。
-
-执行链路如下：
-
-`Agent 判断 -> Tool 合成 -> 插件落盘 -> 返回 MEDIA`
-
-1. `before_agent_start` 会注入角色 `SOUL.md`；启用 TTS 时，还会追加一条轻量提示，让 Agent 在合适的时候使用 `clawmate-companion-tts` skill。
-2. Agent 结合角色 prompt 和 TTS skill 判断当前回复是否适合发语音；如果适合，会生成一段适合口播的短文本，并调用 `clawmate_generate_tts`。
-3. `clawmate_generate_tts` 会调用阿里云千问 TTS 的 DashScope 原生接口进行合成，当前默认模型为 `qwen3-tts-flash`，默认音色为 `Chelsie`。
-4. 插件收到远端音频地址后，会将音频下载到本地 `~/.openclaw/media/clawmate-voice/YYYY-MM-DD/`。
-5. Tool 最终返回 `MEDIA: <audioPath>`；成功时只发送语音，不重复发送同内容文字，失败时则降级为普通文字回复。
 
 ---
 
@@ -241,7 +225,6 @@ npm run clawmate:setup
 `probability` 为每条消息的触发概率，推荐范围 `0.1`–`0.3`。
 
 ---
-
 ## 多角色
 
 ### 内置角色
@@ -293,6 +276,22 @@ ClawMate/
     │           └── brooke/
     └── bin/cli.cjs        # 安装向导
 ```
+
+
+## 语音生成链路
+
+
+执行链路如下：
+
+`Agent 判断 -> Tool 合成 -> 插件落盘 -> 返回 MEDIA`
+
+1. `before_agent_start` 会注入角色 `SOUL.md`；启用 TTS 时，还会追加一条轻量提示，让 Agent 在合适的时候使用 `clawmate-companion-tts` skill。
+2. Agent 结合角色 prompt 和 TTS skill 判断当前回复是否适合发语音；如果适合，会生成一段适合口播的短文本，并调用 `clawmate_generate_tts`。
+3. `clawmate_generate_tts` 会调用阿里云千问 TTS 的 DashScope 原生接口进行合成，当前默认模型为 `qwen3-tts-flash`，默认音色为 `Chelsie`。
+4. 插件收到远端音频地址后，会将音频下载到本地 `~/.openclaw/media/clawmate-voice/YYYY-MM-DD/`。
+5. Tool 最终返回 `MEDIA: <audioPath>`；成功时只发送语音，不重复发送同内容文字，失败时则降级为普通文字回复。
+
+
 
 ---
 

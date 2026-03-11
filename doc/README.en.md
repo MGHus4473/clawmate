@@ -72,7 +72,7 @@ Ensure [OpenClaw](https://github.com/openclaw/openclaw) is installed.
 Use the same command:
 
 ```bash
-npx github:BytePioneer-AI/clawmate
+npx @clawmate/clawmate
 ```
 
 The interactive installation wizard will guide you through character selection, proactive selfie configuration, and image service setup.

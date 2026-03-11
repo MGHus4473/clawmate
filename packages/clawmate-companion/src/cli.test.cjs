@@ -3,6 +3,10 @@ const assert = require("node:assert/strict");
 
 const { __testing } = require("../bin/cli.cjs");
 
+test.afterEach(() => {
+  __testing.setLang("zh");
+});
+
 test("normalizeAgents keeps unique ids and sorts default agent first", () => {
   const result = __testing.normalizeAgents([
     { id: "work", workspace: "C:\\work" },
@@ -208,6 +212,25 @@ test("resolveScopeSettings marks shared fields as configured when explicit share
     proactiveSelfie: true,
     tts: true,
   });
+});
+
+test("CLI provider prompts switch with English locale", () => {
+  __testing.setLang("en");
+  const providers = __testing.getProviders();
+
+  assert.equal(providers.aliyun.fields[0].prompt, "Enter the DashScope API key");
+  assert.equal(providers.modelscope.label, "ModelScope (fully free, slower)");
+  assert.match(providers.aliyun.fields[1].choices[0].label, /Wanxiang 2\.6/);
+});
+
+test("CLI TTS default degrade message switches with English locale", () => {
+  __testing.setLang("en");
+
+  assert.equal(
+    __testing.normalizeTtsConfig({}).degradeMessage,
+    "Voice delivery failed for now, so I will keep you company with text first.",
+  );
+  assert.equal(__testing.t("character_custom_tag"), "[custom]");
 });
 
 test("buildPluginConfig applies shared defaults without changing agent overrides", () => {

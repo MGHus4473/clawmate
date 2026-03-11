@@ -77,7 +77,6 @@ const TTS_DEFAULT_VOICE = "Chelsie";
 const TTS_DEFAULT_LANGUAGE = "Chinese";
 const TTS_DEFAULT_API_KEY = "";
 const TTS_DEFAULT_BASE_URL = "https://dashscope.aliyuncs.com/api/v1";
-const TTS_DEFAULT_DEGRADE_MESSAGE = "语音暂时发送失败，我先打字陪你。";
 const TTS_API_KEY_HELP_URL = "https://help.aliyun.com/zh/model-studio/get-api-key";
 const TTS_VOICE_TEST_URL = "https://bailian.console.aliyun.com/cn-beijing/?spm=5176.29597918.J__Xz0dtrgG-8e2H7vxPlPy.9.28c5133cimqlqE&tab=doc#/doc/?type=model&url=2879134";
 
@@ -167,7 +166,7 @@ const T = {
     summary_ex3: "你现在在干嘛？发张照片",
     summary_manage: "插件管理:",
     summary_create_char: "创建自定义角色:",
-    summary_create_ex: "帮我创建一个新角色，她是一个[描述职业/性格/背景]",
+    summary_create_ex: "帮我创建一个[动漫/写实]风格的新角色，她是一个[描述职业/性格/背景]的女生",
     summary_multi_agent: "多 Agent:",
     fail: "安装失败:",
     skip: "跳过，稍后再配置",
@@ -220,16 +219,27 @@ const T = {
     // providers
     p_aliyun: "阿里云百炼（有免费额度）",
     p_volcengine: "火山引擎 ARK（有免费额度）",
+    p_modelscope: "ModelScope（完全免费，但速度较慢）",
     p_fal: "fal.ai",
     p_openai: "OpenAI 兼容接口",
     p_mock: "Mock (仅测试，不需要 API Key)",
     mscope_model_zimage: "Tongyi-MAI/Z-Image（不依赖参考图）",
     mscope_model_edit: "Qwen/Qwen-Image-Edit-2511（依赖参考图，生成时间较长）",
+    aliyun_model_wan26: "wan2.6-image（万相 2.6）",
+    aliyun_model_qwen_edit: "qwen-image-edit-max（Qwen 图像编辑）",
+    volcengine_model_seedream45: "doubao-seedream-4-5-251128（SeedDream 4.5）",
+    volcengine_model_seedream40: "doubao-seedream-4-0-250828（SeedDream 4.0）",
     provider_recommend: "建议优先使用谷歌 Banana",
     f_select_model: "选择模型",
     f_custom_model: "输入自定义模型名称: ",
     f_custom_endpoint: "输入自定义模型 Endpoint ID: ",
     f_model_name: "模型名称",
+    f_dashscope_api_key: "输入 DashScope API Key",
+    f_ark_api_key: "输入 ARK API Key",
+    f_modelscope_token: "输入 ModelScope Token",
+    f_fal_key: "输入 FAL_KEY",
+    f_api_key: "输入 API Key",
+    f_base_url: "输入 Base URL",
     f_fal_hint: "从 https://fal.ai/dashboard/keys 获取",
     f_baseurl_hint: "例: https://api.openai.com/v1",
     tts_enable: "语音合成：在适合的时刻发送短语音",
@@ -243,6 +253,8 @@ const T = {
     tts_voice_hint: "还有更多可选音色，可以在这个地址在线测试:",
     tts_api_key_hint: "获取 Key 的链接:",
     tts_recommended: "推荐",
+    tts_default_degrade_message: "语音暂时发送失败，我先打字陪你。",
+    character_custom_tag: "[自定义]",
     summary_tts: "语音合成:",
   },
   en: {
@@ -304,7 +316,7 @@ const T = {
     summary_ex3: "What are you doing? Send a pic",
     summary_manage: "Plugin management:",
     summary_create_char: "Create a custom character:",
-    summary_create_ex: "Help me create a new character, she is a [describe occupation/personality/background]",
+    summary_create_ex: "Help me create a new [anime/photorealistic] character, she is a girl with [describe occupation/personality/background]",
     summary_multi_agent: "Multi-agent:",
     fail: "Installation failed:",
     skip: "Skip, configure later",
@@ -357,16 +369,27 @@ const T = {
     // providers
     p_aliyun: "Alibaba Cloud Bailian (free quota available)",
     p_volcengine: "Volcengine ARK (free quota available)",
+    p_modelscope: "ModelScope (fully free, slower)",
     p_fal: "fal.ai",
     p_openai: "OpenAI Compatible",
     p_mock: "Mock (testing only, no API Key needed)",
     mscope_model_zimage: "Tongyi-MAI/Z-Image (no reference image required)",
     mscope_model_edit: "Qwen/Qwen-Image-Edit-2511 (requires reference image, longer generation)",
+    aliyun_model_wan26: "wan2.6-image (Wanxiang 2.6)",
+    aliyun_model_qwen_edit: "qwen-image-edit-max (Qwen image editing)",
+    volcengine_model_seedream45: "doubao-seedream-4-5-251128 (SeedDream 4.5)",
+    volcengine_model_seedream40: "doubao-seedream-4-0-250828 (SeedDream 4.0)",
     provider_recommend: "Recommendation: prefer Google Banana",
     f_select_model: "Select model",
     f_custom_model: "Enter custom model name: ",
     f_custom_endpoint: "Enter custom model Endpoint ID: ",
     f_model_name: "Model name",
+    f_dashscope_api_key: "Enter the DashScope API key",
+    f_ark_api_key: "Enter the ARK API key",
+    f_modelscope_token: "Enter the ModelScope token",
+    f_fal_key: "Enter FAL_KEY",
+    f_api_key: "Enter the API key",
+    f_base_url: "Enter the Base URL",
     f_fal_hint: "Get from https://fal.ai/dashboard/keys",
     f_baseurl_hint: "e.g. https://api.openai.com/v1",
     tts_enable: "TTS: send short voice notes when voice feels better than text",
@@ -380,11 +403,14 @@ const T = {
     tts_voice_hint: "More voices are available for online preview here:",
     tts_api_key_hint: "Get the API key:",
     tts_recommended: "Recommended",
+    tts_default_degrade_message: "Voice delivery failed for now, so I will keep you company with text first.",
+    character_custom_tag: "[custom]",
     summary_tts: "TTS:",
   },
 };
 
 function t(key) { return T[lang][key] || T.zh[key] || key; }
+function getDefaultTtsDegradeMessage() { return t("tts_default_degrade_message"); }
 
 function getTtsVoiceOptions() {
   return TTS_VOICE_PRESETS.map((item) => ({
@@ -399,13 +425,13 @@ function getProviders() {
     aliyun: {
       label: t("p_aliyun"),
       fields: [
-        { key: "apiKey", prompt: "DashScope API Key", secret: true, required: true },
+        { key: "apiKey", prompt: t("f_dashscope_api_key"), secret: true, required: true },
         {
           key: "model",
           prompt: t("f_select_model"),
           choices: [
-            { value: "wan2.6-image", label: "wan2.6-image (万相 2.6)" },
-            { value: "qwen-image-edit-max", label: "qwen-image-edit-max (Qwen 图像编辑)" },
+            { value: "wan2.6-image", label: t("aliyun_model_wan26") },
+            { value: "qwen-image-edit-max", label: t("aliyun_model_qwen_edit") },
           ],
           allowCustom: true,
           customPrompt: t("f_custom_model"),
@@ -418,13 +444,13 @@ function getProviders() {
     volcengine: {
       label: t("p_volcengine"),
       fields: [
-        { key: "apiKey", prompt: "ARK API Key", secret: true, required: true },
+        { key: "apiKey", prompt: t("f_ark_api_key"), secret: true, required: true },
         {
           key: "model",
           prompt: t("f_select_model"),
           choices: [
-            { value: "doubao-seedream-4-5-251128", label: "doubao-seedream-4-5-251128 (SeedDream 4.5)" },
-            { value: "doubao-seedream-4-0-250828", label: "doubao-seedream-4-0-250828 (SeedDream 4.0)" },
+            { value: "doubao-seedream-4-5-251128", label: t("volcengine_model_seedream45") },
+            { value: "doubao-seedream-4-0-250828", label: t("volcengine_model_seedream40") },
           ],
           allowCustom: true,
           customPrompt: t("f_custom_endpoint"),
@@ -435,9 +461,9 @@ function getProviders() {
       },
     },
     modelscope: {
-      label: lang === "en" ? "ModelScope (fully free, slower)" : "ModelScope（完全免费，但速度较慢）",
+      label: t("p_modelscope"),
       fields: [
-        { key: "apiKey", prompt: "ModelScope Token", secret: true, required: true },
+        { key: "apiKey", prompt: t("f_modelscope_token"), secret: true, required: true },
         {
           key: "model",
           prompt: t("f_select_model"),
@@ -463,7 +489,7 @@ function getProviders() {
     fal: {
       label: t("p_fal"),
       fields: [
-        { key: "apiKey", prompt: "FAL_KEY", secret: true, required: true, hint: t("f_fal_hint") },
+        { key: "apiKey", prompt: t("f_fal_key"), secret: true, required: true, hint: t("f_fal_hint") },
         { key: "model", prompt: t("f_model_name"), default: "fal-ai/flux/dev/image-to-image" },
       ],
       buildConfig(answers) {
@@ -473,8 +499,8 @@ function getProviders() {
     "openai-compatible": {
       label: t("p_openai"),
       fields: [
-        { key: "apiKey", prompt: "API Key", secret: true, required: true },
-        { key: "baseUrl", prompt: "Base URL", required: true, hint: t("f_baseurl_hint") },
+        { key: "apiKey", prompt: t("f_api_key"), secret: true, required: true },
+        { key: "baseUrl", prompt: t("f_base_url"), required: true, hint: t("f_baseurl_hint") },
         { key: "model", prompt: t("f_model_name"), required: true },
       ],
       buildConfig(answers) {
@@ -847,7 +873,7 @@ function normalizeTtsConfig(value) {
     degradeMessage:
       typeof value?.degradeMessage === "string" && value.degradeMessage.trim()
         ? value.degradeMessage.trim()
-        : TTS_DEFAULT_DEGRADE_MESSAGE,
+        : getDefaultTtsDegradeMessage(),
   };
 }
 
@@ -1321,7 +1347,7 @@ async function chooseCharacterSelection(scope, settings) {
   }
 
   for (const character of characters) {
-    const tag = character._builtIn ? "" : c("yellow", " [自定义]");
+    const tag = character._builtIn ? "" : c("yellow", ` ${t("character_custom_tag")}`);
     const isCurrent =
       settings.currentCharacterId === character.id &&
       (
@@ -1556,7 +1582,7 @@ async function configureTtsSelection(scope, settings) {
       languageType,
       apiKey,
       baseUrl: TTS_DEFAULT_BASE_URL,
-      degradeMessage: TTS_DEFAULT_DEGRADE_MESSAGE,
+      degradeMessage: getDefaultTtsDegradeMessage(),
     },
   };
   logSuccess(`${t("tts_done")} (${voice} / ${languageType})`);
@@ -2035,9 +2061,15 @@ module.exports = {
     buildConfigTargetMenu,
     getConfigTargetInitialIndex,
     buildConfigTargetDetails,
+    getProviders,
     hasConfiguredAgentScopes,
     hasConfiguredScopes,
+    normalizeTtsConfig,
     normalizeAgents,
     resolveScopeSettings,
+    setLang(nextLang) {
+      lang = nextLang;
+    },
+    t,
   },
 };
