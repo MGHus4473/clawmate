@@ -220,7 +220,55 @@ test("CLI provider prompts switch with English locale", () => {
 
   assert.equal(providers.aliyun.fields[0].prompt, "Enter the DashScope API key");
   assert.equal(providers.modelscope.label, "ModelScope (fully free, slower)");
+  assert.equal(providers.gemini.label, "Gemini Official SDK");
   assert.match(providers.aliyun.fields[1].choices[0].label, /Wanxiang 2\.6/);
+  assert.equal(providers.gemini.fields[3].hint, "e.g. https://generativelanguage.googleapis.com");
+  assert.deepEqual(
+    providers.gemini.fields[1].choices.map((choice) => choice.value),
+    [
+      "gemini-3-pro-image-preview",
+      "gemini-3.1-flash-image-preview",
+      "gemini-2.5-flash-image",
+      "gemini-2.5-flash-image-preview",
+    ],
+  );
+});
+
+test("Gemini CLI config omits baseUrl when using the official default endpoint", () => {
+  const providers = __testing.getProviders();
+
+  assert.deepEqual(
+    providers.gemini.buildConfig({
+      apiKey: "gemini-key",
+      model: "gemini-3.1-flash-image-preview",
+      endpointMode: "official",
+      baseUrl: "https://proxy.example.com",
+    }),
+    {
+      type: "gemini",
+      apiKey: "gemini-key",
+      model: "gemini-3.1-flash-image-preview",
+    },
+  );
+});
+
+test("Gemini CLI config preserves custom model and custom BaseURL", () => {
+  const providers = __testing.getProviders();
+
+  assert.deepEqual(
+    providers.gemini.buildConfig({
+      apiKey: "gemini-key",
+      model: "my-company/gemini-image-proxy",
+      endpointMode: "custom",
+      baseUrl: "https://proxy.example.com/gemini",
+    }),
+    {
+      type: "gemini",
+      apiKey: "gemini-key",
+      model: "my-company/gemini-image-proxy",
+      baseUrl: "https://proxy.example.com/gemini",
+    },
+  );
 });
 
 test("CLI TTS default degrade message switches with English locale", () => {
@@ -421,6 +469,74 @@ test("buildPluginConfig writes explicit agent overrides even when they match sha
       selectedCharacter: "brooke",
       defaultProvider: "openai-compatible",
       proactiveSelfie: { enabled: false, probability: 0.1 },
+    },
+  });
+});
+
+test("buildPluginConfig applies a shared Gemini provider selection", () => {
+  const result = __testing.buildPluginConfig({
+    selectedCharacter: "brooke",
+    providers: {
+      aliyun: { type: "aliyun", model: "wan2.6-image" },
+    },
+  }, {
+    scope: { type: "shared" },
+    providerSelection: { mode: "set", providerKey: "gemini" },
+    providerConfigs: {
+      gemini: {
+        type: "gemini",
+        apiKey: "gemini-key",
+        model: "gemini-3.1-flash-image-preview",
+      },
+    },
+    defaultUserCharacterRoot: "C:\\Users\\tester\\.openclaw\\clawmeta",
+  });
+
+  assert.equal(result.defaultProvider, "gemini");
+  assert.deepEqual(result.providers, {
+    aliyun: { type: "aliyun", model: "wan2.6-image" },
+    gemini: {
+      type: "gemini",
+      apiKey: "gemini-key",
+      model: "gemini-3.1-flash-image-preview",
+    },
+  });
+});
+
+test("buildPluginConfig applies an agent-scoped Gemini provider selection", () => {
+  const result = __testing.buildPluginConfig({
+    selectedCharacter: "brooke",
+    defaultProvider: "aliyun",
+    providers: {
+      aliyun: { type: "aliyun", model: "wan2.6-image" },
+    },
+  }, {
+    scope: { type: "agent", agentId: "ding-main" },
+    providerSelection: { mode: "set", providerKey: "gemini" },
+    providerConfigs: {
+      gemini: {
+        type: "gemini",
+        apiKey: "gemini-key",
+        model: "gemini-2.5-flash-image",
+        baseUrl: "https://proxy.example.com",
+      },
+    },
+    defaultUserCharacterRoot: "C:\\Users\\tester\\.openclaw\\clawmeta",
+  });
+
+  assert.deepEqual(result.agents, {
+    "ding-main": {
+      enabled: true,
+      defaultProvider: "gemini",
+    },
+  });
+  assert.deepEqual(result.providers, {
+    aliyun: { type: "aliyun", model: "wan2.6-image" },
+    gemini: {
+      type: "gemini",
+      apiKey: "gemini-key",
+      model: "gemini-2.5-flash-image",
+      baseUrl: "https://proxy.example.com",
     },
   });
 });

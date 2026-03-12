@@ -221,6 +221,7 @@ const T = {
     p_volcengine: "火山引擎 ARK（有免费额度）",
     p_modelscope: "ModelScope（完全免费，但速度较慢）",
     p_fal: "fal.ai",
+    p_gemini: "Gemini 官方 SDK",
     p_openai: "OpenAI 兼容接口",
     p_mock: "Mock (仅测试，不需要 API Key)",
     mscope_model_zimage: "Tongyi-MAI/Z-Image（不依赖参考图）",
@@ -229,6 +230,10 @@ const T = {
     aliyun_model_qwen_edit: "qwen-image-edit-max（Qwen 图像编辑）",
     volcengine_model_seedream45: "doubao-seedream-4-5-251128（SeedDream 4.5）",
     volcengine_model_seedream40: "doubao-seedream-4-0-250828（SeedDream 4.0）",
+    gemini_model_pro_preview: "gemini-3-pro-image-preview（高质量预览版）",
+    gemini_model_flash31_preview: "gemini-3.1-flash-image-preview（推荐）",
+    gemini_model_flash25: "gemini-2.5-flash-image（稳定版）",
+    gemini_model_flash25_preview: "gemini-2.5-flash-image-preview（预览版）",
     provider_recommend: "建议优先使用谷歌 Banana",
     f_select_model: "选择模型",
     f_custom_model: "输入自定义模型名称: ",
@@ -238,10 +243,15 @@ const T = {
     f_ark_api_key: "输入 ARK API Key",
     f_modelscope_token: "输入 ModelScope Token",
     f_fal_key: "输入 FAL_KEY",
+    f_gemini_api_key: "输入 Gemini API Key",
     f_api_key: "输入 API Key",
     f_base_url: "输入 Base URL",
     f_fal_hint: "从 https://fal.ai/dashboard/keys 获取",
     f_baseurl_hint: "例: https://api.openai.com/v1",
+    f_gemini_baseurl_hint: "例: https://generativelanguage.googleapis.com",
+    f_gemini_endpoint_mode: "选择 Gemini API 地址",
+    gemini_endpoint_default: "官方默认地址",
+    gemini_endpoint_custom: "自定义 BaseURL",
     tts_enable: "语音合成：在适合的时刻发送短语音",
     tts_yes: "开启",
     tts_no: "关闭（仅文字回复）",
@@ -371,6 +381,7 @@ const T = {
     p_volcengine: "Volcengine ARK (free quota available)",
     p_modelscope: "ModelScope (fully free, slower)",
     p_fal: "fal.ai",
+    p_gemini: "Gemini Official SDK",
     p_openai: "OpenAI Compatible",
     p_mock: "Mock (testing only, no API Key needed)",
     mscope_model_zimage: "Tongyi-MAI/Z-Image (no reference image required)",
@@ -379,6 +390,10 @@ const T = {
     aliyun_model_qwen_edit: "qwen-image-edit-max (Qwen image editing)",
     volcengine_model_seedream45: "doubao-seedream-4-5-251128 (SeedDream 4.5)",
     volcengine_model_seedream40: "doubao-seedream-4-0-250828 (SeedDream 4.0)",
+    gemini_model_pro_preview: "gemini-3-pro-image-preview (high-quality preview)",
+    gemini_model_flash31_preview: "gemini-3.1-flash-image-preview (recommended)",
+    gemini_model_flash25: "gemini-2.5-flash-image (stable)",
+    gemini_model_flash25_preview: "gemini-2.5-flash-image-preview (preview)",
     provider_recommend: "Recommendation: prefer Google Banana",
     f_select_model: "Select model",
     f_custom_model: "Enter custom model name: ",
@@ -388,10 +403,15 @@ const T = {
     f_ark_api_key: "Enter the ARK API key",
     f_modelscope_token: "Enter the ModelScope token",
     f_fal_key: "Enter FAL_KEY",
+    f_gemini_api_key: "Enter the Gemini API key",
     f_api_key: "Enter the API key",
     f_base_url: "Enter the Base URL",
     f_fal_hint: "Get from https://fal.ai/dashboard/keys",
     f_baseurl_hint: "e.g. https://api.openai.com/v1",
+    f_gemini_baseurl_hint: "e.g. https://generativelanguage.googleapis.com",
+    f_gemini_endpoint_mode: "Choose the Gemini API address",
+    gemini_endpoint_default: "Official default address",
+    gemini_endpoint_custom: "Custom BaseURL",
     tts_enable: "TTS: send short voice notes when voice feels better than text",
     tts_yes: "Enable",
     tts_no: "Disable (text only)",
@@ -494,6 +514,51 @@ function getProviders() {
       ],
       buildConfig(answers) {
         return { type: "fal", apiKey: answers.apiKey, model: answers.model };
+      },
+    },
+    gemini: {
+      label: t("p_gemini"),
+      fields: [
+        { key: "apiKey", prompt: t("f_gemini_api_key"), secret: true, required: true },
+        {
+          key: "model",
+          prompt: t("f_select_model"),
+          choices: [
+            { value: "gemini-3-pro-image-preview", label: t("gemini_model_pro_preview") },
+            { value: "gemini-3.1-flash-image-preview", label: t("gemini_model_flash31_preview") },
+            { value: "gemini-2.5-flash-image", label: t("gemini_model_flash25") },
+            { value: "gemini-2.5-flash-image-preview", label: t("gemini_model_flash25_preview") },
+          ],
+          allowCustom: true,
+          customPrompt: t("f_custom_model"),
+        },
+        {
+          key: "endpointMode",
+          prompt: t("f_gemini_endpoint_mode"),
+          choices: [
+            { value: "official", label: t("gemini_endpoint_default") },
+            { value: "custom", label: t("gemini_endpoint_custom") },
+          ],
+          resolveExistingValue(existingProviderConfig) {
+            return existingProviderConfig.baseUrl ? "custom" : "official";
+          },
+        },
+        {
+          key: "baseUrl",
+          prompt: t("f_base_url"),
+          hint: t("f_gemini_baseurl_hint"),
+          when(answers) {
+            return answers.endpointMode === "custom";
+          },
+          required(answers) {
+            return answers.endpointMode === "custom";
+          },
+        },
+      ],
+      buildConfig(answers) {
+        return answers.endpointMode === "custom"
+          ? { type: "gemini", apiKey: answers.apiKey, model: answers.model, baseUrl: answers.baseUrl }
+          : { type: "gemini", apiKey: answers.apiKey, model: answers.model };
       },
     },
     "openai-compatible": {
@@ -1622,7 +1687,16 @@ async function collectProviderConfig(providerKey, existingProviderConfig = {}) {
   }
 
   for (const field of provider.fields) {
-    const existingValue = existingProviderConfig[field.key];
+    if (typeof field.when === "function" && !field.when(answers, existingProviderConfig)) {
+      continue;
+    }
+
+    const existingValue = typeof field.resolveExistingValue === "function"
+      ? field.resolveExistingValue(existingProviderConfig, answers)
+      : existingProviderConfig[field.key];
+    const fieldRequired = typeof field.required === "function"
+      ? field.required(answers, existingProviderConfig)
+      : field.required;
 
     if (providerKey === "fal" && field.key === "apiKey") {
       const openIt = await ask(t("fal_open"));
@@ -1642,7 +1716,7 @@ async function collectProviderConfig(providerKey, existingProviderConfig = {}) {
       const currentChoiceIndex = existingValue ? field.choices.findIndex((choice) => choice.value === existingValue) : -1;
       const choiceIndex = await arrowSelect(items, {
         title: `  ${c("dim", t("arrow_hint"))}`,
-        initialIndex: currentChoiceIndex >= 0 ? currentChoiceIndex : 0,
+        initialIndex: currentChoiceIndex >= 0 ? currentChoiceIndex : (field.allowCustom && existingValue ? field.choices.length : 0),
       });
 
       if (field.allowCustom && choiceIndex === field.choices.length) {
@@ -1652,10 +1726,11 @@ async function collectProviderConfig(providerKey, existingProviderConfig = {}) {
           return null;
         }
         answers[field.key] = custom;
+        logSuccess(`${t("selected")} ${answers[field.key]}`);
       } else {
         answers[field.key] = field.choices[choiceIndex].value;
+        logSuccess(`${t("selected")} ${field.choices[choiceIndex].label}`);
       }
-      logSuccess(`${t("selected")} ${answers[field.key]}`);
       continue;
     }
 
@@ -1673,7 +1748,7 @@ async function collectProviderConfig(providerKey, existingProviderConfig = {}) {
     const value = await ask(prompt);
     answers[field.key] = value || effectiveDefault;
 
-    if (field.required && !answers[field.key]) {
+    if (fieldRequired && !answers[field.key]) {
       logError(`${field.prompt} ${t("field_required")}`);
       return null;
     }

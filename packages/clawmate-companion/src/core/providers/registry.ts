@@ -6,6 +6,7 @@ import { createVolcengineArkProvider } from "./volcengine-ark";
 import { createDashScopeAliyunProvider } from "./dashscope-aliyun";
 import { createFalProvider } from "./fal";
 import { createModelScopeProvider } from "./modelscope";
+import { createGeminiProvider } from "./gemini";
 import type { ProviderAdapter, ProviderConfig, ProviderRegistry, ProvidersConfig } from "../types";
 
 interface NamedProviderConfig extends ProviderConfig {
@@ -22,6 +23,7 @@ const PROVIDER_TYPE_ALIASES: Record<string, string> = {
   fal: "fal",
   "http-async": "http-async",
   modelscope: "modelscope",
+  gemini: "gemini",
 };
 
 function normalizeText(value: unknown): string | null {
@@ -99,6 +101,8 @@ function createProvider(config: NamedProviderConfig, fetchImpl?: typeof fetch): 
     provider = createOpenAICompatibleProvider(config, fetchImpl);
   } else if (type === "modelscope") {
     provider = createModelScopeProvider(config, fetchImpl);
+  } else if (type === "gemini") {
+    provider = createGeminiProvider(config);
   } else if (type === "fal") {
     provider = createFalProvider(config, fetchImpl);
   } else if (type === "http-async") {

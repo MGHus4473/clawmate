@@ -141,6 +141,7 @@ npm run clawmate:setup
 
 | 服务 | 费用特性 |
 | --- | --- |
+| Gemini 官方 SDK | 取决于 Gemini API 或代理服务额度 |
 | ModelScope | 完全免费 |
 | 阿里云百炼 | 有免费额度（以官方控制台为准） |
 | 火山引擎 ARK | 有免费额度（以官方控制台为准） |
@@ -149,6 +150,49 @@ npm run clawmate:setup
 
 
 
+
+**Gemini 官方 SDK（官方默认地址）**
+```json
+{
+  "defaultProvider": "gemini",
+  "providers": {
+    "gemini": {
+      "type": "gemini",
+      "apiKey": "YOUR_GEMINI_API_KEY",
+      "model": "gemini-3.1-flash-image-preview"
+    }
+  }
+}
+```
+
+**Gemini 官方 SDK（自定义 BaseURL）**
+```json
+{
+  "defaultProvider": "gemini",
+  "providers": {
+    "gemini": {
+      "type": "gemini",
+      "apiKey": "YOUR_GEMINI_API_KEY",
+      "baseUrl": "https://your-proxy.example.com",
+      "model": "gemini-3.1-flash-image-preview"
+    }
+  }
+}
+```
+
+Gemini provider 走 Google GenAI SDK 原生图片请求，不复用 OpenAI-compatible 适配层。
+
+- `baseUrl` 为空或不写时，使用 Gemini SDK 官方默认 API 地址
+- `baseUrl` 有值时，改走你提供的自定义地址
+- 自定义 `baseUrl` 需要兼容 Google GenAI SDK 的请求路径和鉴权语义
+- 有参考图时会把参考图作为 inline image part 一起发给 Gemini
+
+CLI 当前内置以下 Gemini 预设模型，也支持手动输入自定义模型名：
+
+- `gemini-3-pro-image-preview`
+- `gemini-3.1-flash-image-preview`
+- `gemini-2.5-flash-image`
+- `gemini-2.5-flash-image-preview`
 
 **OpenAI 兼容接口**
 ```json
