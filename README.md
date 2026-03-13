@@ -70,6 +70,11 @@
 <img width="1594" height="880" alt="image" src="https://github.com/user-attachments/assets/fd103615-f9ba-4197-ac73-c3bd2a0c63fd" />
 
 
+**社群优秀样例哈哈，真的很不错**
+>主动发图、主动关环，给你的 OpenClaw 注入一个有温度的灵魂
+
+<img width="1570" height="790" alt="d0862aec4a9e3c973a16795a153767af" src="https://github.com/user-attachments/assets/f3510187-05fa-4c14-afe4-f06a0b00d022" />
+
 ---
 
 ## 快速开始
