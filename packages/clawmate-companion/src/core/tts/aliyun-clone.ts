@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { ClawMateError } from "../errors";
+import { createLogger } from "../logger";
 
 export interface CreateAliyunCloneVoiceModelOptions {
   apiKey: string;
@@ -71,6 +72,8 @@ interface CloneWsEventEnvelope {
     task_id?: unknown;
   };
 }
+
+const logger = createLogger("clawmate-tts");
 
 function toOptionalString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -338,6 +341,10 @@ export async function generateAliyunCloneTts(
         try {
           envelope = JSON.parse(event.data) as CloneWsEventEnvelope;
         } catch {
+          logger.error("复刻语音 WebSocket 文本事件解析失败", {
+            responseText: event.data,
+            taskId,
+          });
           finish(() =>
             reject(
               new ClawMateError("TTS provider 响应解析失败", {
@@ -351,6 +358,12 @@ export async function generateAliyunCloneTts(
 
         const eventName = toOptionalString(envelope?.header?.event);
         requestId = toOptionalString(envelope?.header?.task_id) ?? requestId;
+
+        logger.info("复刻语音 WebSocket 事件", {
+          event: eventName,
+          requestId,
+          envelope,
+        });
 
         if (eventName === "task-started") {
           started = true;
@@ -408,6 +421,13 @@ export async function generateAliyunCloneTts(
         }
 
         if (eventName === "task-failed") {
+          logger.error("复刻语音 WebSocket 任务失败", {
+            requestId,
+            envelope,
+            model: options.model,
+            modelId: options.modelId,
+            speaker: options.speaker,
+          });
           finish(() =>
             reject(
               new ClawMateError("复刻语音合成失败", {
@@ -426,6 +446,10 @@ export async function generateAliyunCloneTts(
         return;
       }
 
+      logger.error("复刻语音 WebSocket 返回了不支持的音频数据格式", {
+        requestId,
+        dataType: typeof event.data,
+      });
       finish(() =>
         reject(
           new ClawMateError("TTS provider 返回了不支持的音频数据格式", {
@@ -437,7 +461,15 @@ export async function generateAliyunCloneTts(
       );
     };
 
-    socket.onerror = () => {
+    socket.onerror = (event) => {
+      logger.error("复刻语音 WebSocket 连接失败", {
+        requestId,
+        taskId,
+        event,
+        model: options.model,
+        modelId: options.modelId,
+        started,
+      });
       finish(() =>
         reject(
           new ClawMateError(started ? "复刻语音合成连接失败" : "复刻语音合成启动失败", {
@@ -448,15 +480,29 @@ export async function generateAliyunCloneTts(
       );
     };
 
-    socket.onclose = () => {
+    socket.onclose = (event) => {
       if (settled) {
         return;
       }
+      logger.error("复刻语音 WebSocket 连接已关闭", {
+        requestId,
+        taskId,
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+        started,
+      });
       finish(() =>
         reject(
           new ClawMateError("复刻语音合成连接已关闭", {
             code: "TTS_WEBSOCKET_CLOSED",
             requestId,
+            details: {
+              code: event.code,
+              reason: event.reason,
+              wasClean: event.wasClean,
+              started,
+            },
           }),
         ),
       );
