@@ -28,7 +28,10 @@ test("hasConfiguredScopes counts shared defaults and agent enable/disable states
   assert.equal(__testing.hasConfiguredScopes({
     tts: {
       enabled: true,
-      voice: "Chelsie",
+      provider: "aliyun-official",
+      official: {
+        voice: "Chelsie",
+      },
     },
   }), true);
   assert.equal(__testing.hasConfiguredScopes({
@@ -62,7 +65,10 @@ test("hasConfiguredAgentScopes ignores shared defaults and only counts agent ent
   assert.equal(__testing.hasConfiguredAgentScopes({
     tts: {
       enabled: true,
-      voice: "Chelsie",
+      provider: "aliyun-official",
+      official: {
+        voice: "Chelsie",
+      },
     },
   }), false);
   assert.equal(__testing.hasConfiguredAgentScopes({
@@ -189,12 +195,27 @@ test("resolveScopeSettings marks shared fields as unconfigured on fresh install"
   assert.deepEqual(result.currentProactiveSelfie, { enabled: false, probability: 0.1 });
   assert.deepEqual(result.currentTts, {
     enabled: false,
-    model: "qwen3-tts-flash",
-    voice: "Chelsie",
-    languageType: "Chinese",
-    apiKey: "",
-    baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+    provider: "aliyun-official",
+    outputFormat: "wav",
     degradeMessage: "语音暂时发送失败，我先打字陪你。",
+    official: {
+      model: "qwen3-tts-flash",
+      voice: "Chelsie",
+      languageType: "Chinese",
+      apiKey: "",
+      baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+    },
+    clone: {
+      apiKey: "",
+      baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+      targetModel: "cosyvoice-v1",
+      modelId: "",
+      synthesisModel: "cosyvoice-clone-v1",
+      speaker: "",
+      promptAudioUrl: "",
+      promptText: "",
+      statusUrl: "https://dashscope.aliyuncs.com/api/v1",
+    },
   });
 });
 
@@ -286,7 +307,7 @@ test("buildPluginConfig applies shared defaults without changing agent overrides
     selectedCharacter: "brooke",
     defaultProvider: "openai-compatible",
     proactiveSelfie: { enabled: false, probability: 0.1 },
-    tts: { enabled: true, voice: "Chelsie", languageType: "Chinese", apiKey: "shared-tts-key" },
+    tts: { enabled: true, provider: "aliyun-official", official: { voice: "Chelsie", languageType: "Chinese", apiKey: "shared-tts-key" } },
     providers: {
       "openai-compatible": { type: "openai-compatible", model: "gemini-imagen" },
     },
@@ -305,12 +326,27 @@ test("buildPluginConfig applies shared defaults without changing agent overrides
     proactiveSelection: { mode: "set", value: { enabled: true, probability: 0.2 } },
     ttsSelection: { mode: "set", value: {
       enabled: true,
-      model: "qwen3-tts-flash",
-      voice: "Maia",
-      languageType: "English",
-      apiKey: "work-tts-key",
-      baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+      provider: "aliyun-official",
+      outputFormat: "wav",
       degradeMessage: "语音暂时发送失败，我先打字陪你。",
+      official: {
+        model: "qwen3-tts-flash",
+        voice: "Maia",
+        languageType: "English",
+        apiKey: "work-tts-key",
+        baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+      },
+      clone: {
+        apiKey: "",
+        baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+        targetModel: "cosyvoice-v1",
+        modelId: "",
+        synthesisModel: "cosyvoice-clone-v1",
+        speaker: "",
+        promptAudioUrl: "",
+        promptText: "",
+        statusUrl: "https://dashscope.aliyuncs.com/api/v1",
+      },
     } },
     providerSelection: { mode: "set", providerKey: "aliyun" },
     providerConfigs: {
@@ -324,12 +360,27 @@ test("buildPluginConfig applies shared defaults without changing agent overrides
   assert.deepEqual(result.proactiveSelfie, { enabled: true, probability: 0.2 });
   assert.deepEqual(result.tts, {
     enabled: true,
-    model: "qwen3-tts-flash",
-    voice: "Maia",
-    languageType: "English",
-    apiKey: "work-tts-key",
-    baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+    provider: "aliyun-official",
+    outputFormat: "wav",
     degradeMessage: "语音暂时发送失败，我先打字陪你。",
+    official: {
+      model: "qwen3-tts-flash",
+      voice: "Maia",
+      languageType: "English",
+      apiKey: "work-tts-key",
+      baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+    },
+    clone: {
+      apiKey: "",
+      baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+      targetModel: "cosyvoice-v1",
+      modelId: "",
+      synthesisModel: "cosyvoice-clone-v1",
+      speaker: "",
+      promptAudioUrl: "",
+      promptText: "",
+      statusUrl: "https://dashscope.aliyuncs.com/api/v1",
+    },
   });
   assert.deepEqual(result.providers, {
     "openai-compatible": { type: "openai-compatible", model: "gemini-imagen" },
@@ -390,7 +441,7 @@ test("buildPluginConfig updates only the selected agent overrides", () => {
     selectedCharacter: "brooke",
     defaultProvider: "openai-compatible",
     proactiveSelfie: { enabled: false, probability: 0.1 },
-    tts: { enabled: true, voice: "Chelsie", languageType: "Chinese", apiKey: "shared-tts-key" },
+    tts: { enabled: true, provider: "aliyun-official", official: { voice: "Chelsie", languageType: "Chinese", apiKey: "shared-tts-key" } },
     agents: {
       main: {
         selectedCharacter: "legacy-main",
@@ -409,12 +460,27 @@ test("buildPluginConfig updates only the selected agent overrides", () => {
     proactiveSelection: { mode: "set", value: { enabled: true, probability: 0.2 } },
     ttsSelection: { mode: "set", value: {
       enabled: true,
-      model: "qwen3-tts-flash",
-      voice: "Neil",
-      languageType: "English",
-      apiKey: "work-tts-key",
-      baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+      provider: "aliyun-official",
+      outputFormat: "wav",
       degradeMessage: "语音暂时发送失败，我先打字陪你。",
+      official: {
+        model: "qwen3-tts-flash",
+        voice: "Neil",
+        languageType: "English",
+        apiKey: "work-tts-key",
+        baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+      },
+      clone: {
+        apiKey: "",
+        baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+        targetModel: "cosyvoice-v1",
+        modelId: "",
+        synthesisModel: "cosyvoice-clone-v1",
+        speaker: "",
+        promptAudioUrl: "",
+        promptText: "",
+        statusUrl: "https://dashscope.aliyuncs.com/api/v1",
+      },
     } },
     providerSelection: { mode: "set", providerKey: "fal" },
     providerConfigs: {
@@ -435,12 +501,27 @@ test("buildPluginConfig updates only the selected agent overrides", () => {
       proactiveSelfie: { enabled: true, probability: 0.2 },
       tts: {
         enabled: true,
-        model: "qwen3-tts-flash",
-        voice: "Neil",
-        languageType: "English",
-        apiKey: "work-tts-key",
-        baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+        provider: "aliyun-official",
+        outputFormat: "wav",
         degradeMessage: "语音暂时发送失败，我先打字陪你。",
+        official: {
+          model: "qwen3-tts-flash",
+          voice: "Neil",
+          languageType: "English",
+          apiKey: "work-tts-key",
+          baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+        },
+        clone: {
+          apiKey: "",
+          baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+          targetModel: "cosyvoice-v1",
+          modelId: "",
+          synthesisModel: "cosyvoice-clone-v1",
+          speaker: "",
+          promptAudioUrl: "",
+          promptText: "",
+          statusUrl: "https://dashscope.aliyuncs.com/api/v1",
+        },
       },
     },
   });

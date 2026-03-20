@@ -79,6 +79,7 @@ const TTS_DEFAULT_API_KEY = "";
 const TTS_DEFAULT_BASE_URL = "https://dashscope.aliyuncs.com/api/v1";
 const TTS_API_KEY_HELP_URL = "https://help.aliyun.com/zh/model-studio/get-api-key";
 const TTS_VOICE_TEST_URL = "https://bailian.console.aliyun.com/cn-beijing/?spm=5176.29597918.J__Xz0dtrgG-8e2H7vxPlPy.9.28c5133cimqlqE&tab=doc#/doc/?type=model&url=2879134";
+const TTS_CLONE_DOC_URL = "https://help.aliyun.com/zh/model-studio/cosyvoice-clone-design-api";
 
 const TTS_VOICE_PRESETS = [
   { value: "Chelsie", zh: "Chelsie — 二次元虚拟女友（女性）", en: "Chelsie — anime virtual girlfriend (female)" },
@@ -256,12 +257,24 @@ const T = {
     tts_yes: "开启",
     tts_no: "关闭（仅文字回复）",
     tts_done: "语音合成配置完成",
+    tts_select_provider: "选择语音模式",
+    tts_provider_official: "官方音色",
+    tts_provider_clone: "复刻音色",
     tts_select_voice: "选择默认音色",
     tts_custom_voice: "输入自定义音色名称: ",
     tts_select_language: "选择默认语种",
     tts_api_key: "输入 TTS API Key",
+    tts_output_format: "选择输出格式",
+    tts_clone_target_model: "输入复刻目标模型",
+    tts_clone_model_id: "输入已存在的复刻模型 ID（可留空，安装时后续创建）",
+    tts_clone_synthesis_model: "输入合成模型名称",
+    tts_clone_speaker: "输入说话人名称（可选）",
+    tts_clone_prompt_audio_url: "输入示例音频 URL",
+    tts_clone_prompt_text: "输入示例音频对应文本",
+    tts_clone_status_url: "输入任务查询 Base URL（留空则复用 Base URL）",
     tts_voice_hint: "还有更多可选音色，可以在这个地址在线测试:",
     tts_api_key_hint: "获取 Key 的链接:",
+    tts_clone_doc_hint: "复刻音色文档:",
     tts_recommended: "推荐",
     tts_default_degrade_message: "语音暂时发送失败，我先打字陪你。",
     character_custom_tag: "[自定义]",
@@ -416,12 +429,24 @@ const T = {
     tts_yes: "Enable",
     tts_no: "Disable (text only)",
     tts_done: "TTS configured",
+    tts_select_provider: "Choose TTS mode",
+    tts_provider_official: "Official voice",
+    tts_provider_clone: "Cloned voice",
     tts_select_voice: "Choose the default voice",
     tts_custom_voice: "Enter a custom voice name: ",
     tts_select_language: "Choose the default language",
     tts_api_key: "Enter the TTS API key",
+    tts_output_format: "Choose output format",
+    tts_clone_target_model: "Enter clone target model",
+    tts_clone_model_id: "Enter an existing clone model ID (optional)",
+    tts_clone_synthesis_model: "Enter synthesis model name",
+    tts_clone_speaker: "Enter speaker name (optional)",
+    tts_clone_prompt_audio_url: "Enter prompt audio URL",
+    tts_clone_prompt_text: "Enter prompt transcript",
+    tts_clone_status_url: "Enter status query Base URL (optional)",
     tts_voice_hint: "More voices are available for online preview here:",
     tts_api_key_hint: "Get the API key:",
+    tts_clone_doc_hint: "Voice clone docs:",
     tts_recommended: "Recommended",
     tts_default_degrade_message: "Voice delivery failed for now, so I will keep you company with text first.",
     character_custom_tag: "[custom]",
@@ -913,32 +938,40 @@ function normalizeProactiveSelfieConfig(value) {
 }
 
 function normalizeTtsConfig(value) {
+  const official = toRecord(value?.official);
+  const clone = toRecord(value?.clone);
   return {
     enabled: Boolean(value?.enabled),
-    model:
-      typeof value?.model === "string" && value.model.trim()
-        ? value.model.trim()
-        : TTS_DEFAULT_MODEL,
-    voice:
-      typeof value?.voice === "string" && value.voice.trim()
-        ? value.voice.trim()
-        : TTS_DEFAULT_VOICE,
-    languageType:
-      typeof value?.languageType === "string" && value.languageType.trim()
-        ? value.languageType.trim()
-        : TTS_DEFAULT_LANGUAGE,
-    apiKey:
-      typeof value?.apiKey === "string" && value.apiKey.trim()
-        ? value.apiKey.trim()
-        : TTS_DEFAULT_API_KEY,
-    baseUrl:
-      typeof value?.baseUrl === "string" && value.baseUrl.trim()
-        ? value.baseUrl.trim()
-        : TTS_DEFAULT_BASE_URL,
+    provider:
+      value?.provider === "aliyun-clone" || value?.provider === "aliyun-official"
+        ? value.provider
+        : "aliyun-official",
+    outputFormat:
+      value?.outputFormat === "ogg" || value?.outputFormat === "opus"
+        ? value.outputFormat
+        : "wav",
     degradeMessage:
       typeof value?.degradeMessage === "string" && value.degradeMessage.trim()
         ? value.degradeMessage.trim()
         : getDefaultTtsDegradeMessage(),
+    official: {
+      model: typeof official.model === "string" && official.model.trim() ? official.model.trim() : (typeof value?.model === "string" && value.model.trim() ? value.model.trim() : TTS_DEFAULT_MODEL),
+      voice: typeof official.voice === "string" && official.voice.trim() ? official.voice.trim() : (typeof value?.voice === "string" && value.voice.trim() ? value.voice.trim() : TTS_DEFAULT_VOICE),
+      languageType: typeof official.languageType === "string" && official.languageType.trim() ? official.languageType.trim() : (typeof value?.languageType === "string" && value.languageType.trim() ? value.languageType.trim() : TTS_DEFAULT_LANGUAGE),
+      apiKey: typeof official.apiKey === "string" && official.apiKey.trim() ? official.apiKey.trim() : (typeof value?.apiKey === "string" && value.apiKey.trim() ? value.apiKey.trim() : TTS_DEFAULT_API_KEY),
+      baseUrl: typeof official.baseUrl === "string" && official.baseUrl.trim() ? official.baseUrl.trim() : (typeof value?.baseUrl === "string" && value.baseUrl.trim() ? value.baseUrl.trim() : TTS_DEFAULT_BASE_URL),
+    },
+    clone: {
+      apiKey: typeof clone.apiKey === "string" && clone.apiKey.trim() ? clone.apiKey.trim() : (typeof value?.apiKey === "string" && value.apiKey.trim() ? value.apiKey.trim() : TTS_DEFAULT_API_KEY),
+      baseUrl: typeof clone.baseUrl === "string" && clone.baseUrl.trim() ? clone.baseUrl.trim() : (typeof value?.baseUrl === "string" && value.baseUrl.trim() ? value.baseUrl.trim() : TTS_DEFAULT_BASE_URL),
+      targetModel: typeof clone.targetModel === "string" && clone.targetModel.trim() ? clone.targetModel.trim() : "cosyvoice-v1",
+      modelId: typeof clone.modelId === "string" ? clone.modelId.trim() : "",
+      synthesisModel: typeof clone.synthesisModel === "string" && clone.synthesisModel.trim() ? clone.synthesisModel.trim() : "cosyvoice-clone-v1",
+      speaker: typeof clone.speaker === "string" ? clone.speaker.trim() : "",
+      promptAudioUrl: typeof clone.promptAudioUrl === "string" ? clone.promptAudioUrl.trim() : "",
+      promptText: typeof clone.promptText === "string" ? clone.promptText.trim() : "",
+      statusUrl: typeof clone.statusUrl === "string" && clone.statusUrl.trim() ? clone.statusUrl.trim() : TTS_DEFAULT_BASE_URL,
+    },
   };
 }
 
@@ -962,7 +995,10 @@ function formatTtsLabel(value) {
   if (!config.enabled) {
     return t("tts_no");
   }
-  return `${t("tts_yes")} (${config.voice} / ${config.languageType})`;
+  if (config.provider === "aliyun-clone") {
+    return `${t("tts_yes")} (${t("tts_provider_clone")} / ${config.outputFormat} / ${config.clone.modelId || "pending"})`;
+  }
+  return `${t("tts_yes")} (${config.official.voice} / ${config.official.languageType})`;
 }
 
 function getConfiguredProviderEntries(pluginConfig) {
@@ -1562,15 +1598,9 @@ async function configureTtsSelection(scope, settings) {
   values.push({ mode: "skip" });
 
   const initialIndex = Math.max(0, values.findIndex((item) => {
-    if (item.mode === "inherit") {
-      return settings.overrides.tts === undefined;
-    }
-    if (item.mode === "set") {
-      return !current.enabled;
-    }
-    if (item.mode === "enable") {
-      return current.enabled;
-    }
+    if (item.mode === "inherit") return settings.overrides.tts === undefined;
+    if (item.mode === "set") return !current.enabled;
+    if (item.mode === "enable") return current.enabled;
     return false;
   }));
 
@@ -1593,11 +1623,73 @@ async function configureTtsSelection(scope, settings) {
     return selection;
   }
 
-  const voiceOptions = getTtsVoiceOptions();
-  const voiceItems = voiceOptions.map((item) => `${item.label}${item.value === current.voice ? currentTag() : ""}`);
-  voiceItems.push(t("custom_input"));
+  const providerItems = [
+    `${t("tts_provider_official")}${current.provider === "aliyun-official" ? currentTag() : ""}`,
+    `${t("tts_provider_clone")}${current.provider === "aliyun-clone" ? currentTag() : ""}`,
+  ];
+  const providerIndex = await arrowSelect(providerItems, {
+    title: `  ${t("tts_select_provider")}\n  ${c("dim", t("arrow_hint"))}`,
+    initialIndex: current.provider === "aliyun-clone" ? 1 : 0,
+  });
+  const provider = providerIndex === 1 ? "aliyun-clone" : "aliyun-official";
 
-  const currentVoiceIndex = voiceOptions.findIndex((item) => item.value === current.voice);
+  const outputOptions = ["wav", "ogg", "opus"];
+  const outputItems = outputOptions.map((item) => `${item}${item === current.outputFormat ? currentTag() : ""}`);
+  const outputIndex = await arrowSelect(outputItems, {
+    title: `  ${t("tts_output_format")}\n  ${c("dim", t("arrow_hint"))}`,
+    initialIndex: Math.max(0, outputOptions.indexOf(current.outputFormat)),
+  });
+  const outputFormat = outputOptions[outputIndex];
+
+  logInfo(`${t("tts_api_key_hint")} ${TTS_API_KEY_HELP_URL}`);
+  const currentApiKey = provider === "aliyun-clone" ? current.clone.apiKey : current.official.apiKey;
+  const currentApiKeyTag = currentApiKey ? ` ${c("green", "[****]")}` : "";
+  const apiKeyInput = await ask(`  ${t("tts_api_key")}${currentApiKeyTag}: `);
+  const apiKey = apiKeyInput || currentApiKey;
+  if (!apiKey) {
+    logError(`${t("tts_api_key")} ${t("field_required")}`);
+    return null;
+  }
+
+  if (provider === "aliyun-clone") {
+    logInfo(`${t("tts_clone_doc_hint")} ${TTS_CLONE_DOC_URL}`);
+    const targetModel = (await ask(`  ${t("tts_clone_target_model")}: `)) || current.clone.targetModel || "cosyvoice-v1";
+    const modelId = (await ask(`  ${t("tts_clone_model_id")}: `)) || current.clone.modelId || "";
+    const synthesisModel = (await ask(`  ${t("tts_clone_synthesis_model")}: `)) || current.clone.synthesisModel || "cosyvoice-clone-v1";
+    const speaker = (await ask(`  ${t("tts_clone_speaker")}: `)) || current.clone.speaker || "";
+    const promptAudioUrl = (await ask(`  ${t("tts_clone_prompt_audio_url")}: `)) || current.clone.promptAudioUrl || "";
+    const promptText = (await ask(`  ${t("tts_clone_prompt_text")}: `)) || current.clone.promptText || "";
+    const statusUrl = (await ask(`  ${t("tts_clone_status_url")}: `)) || current.clone.statusUrl || TTS_DEFAULT_BASE_URL;
+
+    const result = {
+      mode: "set",
+      value: {
+        enabled: true,
+        provider,
+        outputFormat,
+        degradeMessage: getDefaultTtsDegradeMessage(),
+        official: current.official,
+        clone: {
+          apiKey,
+          baseUrl: current.clone.baseUrl || TTS_DEFAULT_BASE_URL,
+          targetModel,
+          modelId,
+          synthesisModel,
+          speaker,
+          promptAudioUrl,
+          promptText,
+          statusUrl,
+        },
+      },
+    };
+    logSuccess(`${t("tts_done")} (${t("tts_provider_clone")} / ${outputFormat})`);
+    return result;
+  }
+
+  const voiceOptions = getTtsVoiceOptions();
+  const voiceItems = voiceOptions.map((item) => `${item.label}${item.value === current.official.voice ? currentTag() : ""}`);
+  voiceItems.push(t("custom_input"));
+  const currentVoiceIndex = voiceOptions.findIndex((item) => item.value === current.official.voice);
   const selectedVoiceIndex = await arrowSelect(voiceItems, {
     title: `  ${t("tts_select_voice")}\n  ${c("dim", t("arrow_hint"))}`,
     initialIndex: currentVoiceIndex >= 0 ? currentVoiceIndex : 0,
@@ -1607,7 +1699,7 @@ async function configureTtsSelection(scope, settings) {
     ],
   });
 
-  let voice = current.voice;
+  let voice = current.official.voice;
   if (selectedVoiceIndex === voiceOptions.length) {
     const customVoice = await ask(`  ${t("tts_custom_voice")}`);
     if (!customVoice) {
@@ -1618,39 +1710,33 @@ async function configureTtsSelection(scope, settings) {
   } else {
     voice = voiceOptions[selectedVoiceIndex].value;
   }
-  logSuccess(`${t("selected")} ${voice}`);
 
-  const languageItems = TTS_LANGUAGE_OPTIONS.map((item) => `${item}${item === current.languageType ? currentTag() : ""}`);
-  const currentLanguageIndex = Math.max(0, TTS_LANGUAGE_OPTIONS.indexOf(current.languageType));
+  const languageItems = TTS_LANGUAGE_OPTIONS.map((item) => `${item}${item === current.official.languageType ? currentTag() : ""}`);
+  const currentLanguageIndex = Math.max(0, TTS_LANGUAGE_OPTIONS.indexOf(current.official.languageType));
   const languageIndex = await arrowSelect(languageItems, {
     title: `  ${t("tts_select_language")}\n  ${c("dim", t("arrow_hint"))}`,
     initialIndex: currentLanguageIndex,
   });
   const languageType = TTS_LANGUAGE_OPTIONS[languageIndex];
-  logSuccess(`${t("selected")} ${languageType}`);
-
-  logInfo(`${t("tts_api_key_hint")} ${TTS_API_KEY_HELP_URL}`);
-  const currentApiKeyTag = current.apiKey ? ` ${c("green", "[****]")}` : "";
-  const apiKeyInput = await ask(`  ${t("tts_api_key")}${currentApiKeyTag}: `);
-  const apiKey = apiKeyInput || current.apiKey;
-  if (!apiKey) {
-    logError(`${t("tts_api_key")} ${t("field_required")}`);
-    return null;
-  }
 
   const result = {
     mode: "set",
     value: {
       enabled: true,
-      model: TTS_DEFAULT_MODEL,
-      voice,
-      languageType,
-      apiKey,
-      baseUrl: TTS_DEFAULT_BASE_URL,
+      provider,
+      outputFormat,
       degradeMessage: getDefaultTtsDegradeMessage(),
+      official: {
+        model: TTS_DEFAULT_MODEL,
+        voice,
+        languageType,
+        apiKey,
+        baseUrl: current.official.baseUrl || TTS_DEFAULT_BASE_URL,
+      },
+      clone: current.clone,
     },
   };
-  logSuccess(`${t("tts_done")} (${voice} / ${languageType})`);
+  logSuccess(`${t("tts_done")} (${voice} / ${languageType} / ${outputFormat})`);
   return result;
 }
 
