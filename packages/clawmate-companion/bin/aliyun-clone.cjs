@@ -60,9 +60,8 @@ async function createAliyunCloneVoiceModel(options) {
     body: JSON.stringify({
       model: options.targetModel,
       input: {
-        voice_name: options.speaker?.trim() || undefined,
-        prompt_audio_url: options.promptAudioUrl,
-        prompt_text: options.promptText,
+        prefix: options.speaker?.trim() || undefined,
+        url: options.promptAudioUrl,
       },
     }),
   });
@@ -70,7 +69,10 @@ async function createAliyunCloneVoiceModel(options) {
   const { requestId, body } = await parseJsonBody(response);
   return {
     requestId,
-    modelId: toOptionalString(body?.output?.model_id) ?? toOptionalString(body?.data?.model_id),
+    modelId:
+      toOptionalString(body?.output?.model_id) ??
+      toOptionalString(body?.data?.model_id) ??
+      toOptionalString(body?.data?.id),
     taskId: toOptionalString(body?.output?.task_id) ?? toOptionalString(body?.data?.task_id),
     status: toOptionalString(body?.output?.status) ?? toOptionalString(body?.data?.status),
     raw: body,
@@ -92,7 +94,10 @@ async function pollAliyunCloneVoiceModel(options) {
 
     const { requestId, body } = await parseJsonBody(response);
     const status = toOptionalString(body?.output?.status) ?? toOptionalString(body?.data?.status);
-    const modelId = toOptionalString(body?.output?.model_id) ?? toOptionalString(body?.data?.model_id);
+    const modelId =
+      toOptionalString(body?.output?.model_id) ??
+      toOptionalString(body?.data?.model_id) ??
+      toOptionalString(body?.data?.id);
 
     if (status === "SUCCEEDED" || status === "SUCCESS" || modelId) {
       return {

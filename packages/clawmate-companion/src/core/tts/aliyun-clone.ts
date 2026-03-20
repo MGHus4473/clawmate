@@ -6,7 +6,7 @@ export interface CreateAliyunCloneVoiceModelOptions {
   targetModel: string;
   speaker?: string;
   promptAudioUrl: string;
-  promptText: string;
+  promptText?: string;
   fetchImpl?: typeof fetch;
 }
 
@@ -131,9 +131,8 @@ export async function createAliyunCloneVoiceModel(
     body: JSON.stringify({
       model: options.targetModel,
       input: {
-        voice_name: options.speaker?.trim() || undefined,
-        prompt_audio_url: options.promptAudioUrl,
-        prompt_text: options.promptText,
+        prefix: options.speaker?.trim() || undefined,
+        url: options.promptAudioUrl,
       },
     }),
   });
@@ -141,7 +140,10 @@ export async function createAliyunCloneVoiceModel(
   const { requestId, body } = await parseJsonBody(response);
   return {
     requestId,
-    modelId: toOptionalString(body?.output?.model_id) ?? toOptionalString(body?.data?.model_id),
+    modelId:
+      toOptionalString(body?.output?.model_id) ??
+      toOptionalString(body?.data?.model_id) ??
+      toOptionalString(body?.data?.id),
     taskId: toOptionalString(body?.output?.task_id) ?? toOptionalString(body?.data?.task_id),
     status: toOptionalString(body?.output?.status) ?? toOptionalString(body?.data?.status),
     raw: body,
@@ -165,7 +167,10 @@ export async function pollAliyunCloneVoiceModel(
 
     const { requestId, body } = await parseJsonBody(response);
     const status = toOptionalString(body?.output?.status) ?? toOptionalString(body?.data?.status);
-    const modelId = toOptionalString(body?.output?.model_id) ?? toOptionalString(body?.data?.model_id);
+    const modelId =
+      toOptionalString(body?.output?.model_id) ??
+      toOptionalString(body?.data?.model_id) ??
+      toOptionalString(body?.data?.id);
 
     if (status === "SUCCEEDED" || status === "SUCCESS" || modelId) {
       return {
@@ -213,8 +218,7 @@ export async function generateAliyunCloneTts(
       model: options.model,
       input: {
         text: options.text,
-        model_id: options.modelId,
-        voice: options.speaker?.trim() || undefined,
+        voice: options.modelId,
       },
     }),
   });

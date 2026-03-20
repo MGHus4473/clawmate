@@ -1723,7 +1723,7 @@ async function configureTtsSelection(scope, settings) {
     log(`  ${c("dim", t("tts_clone_status_url_hint"))}`);
     const statusUrl = (await ask(`  ${t("tts_clone_status_url")}: `)) || current.clone.statusUrl || TTS_DEFAULT_BASE_URL;
 
-    if (!modelId && promptAudioUrl && promptText) {
+    if (!modelId && promptAudioUrl) {
       logInfo(lang === "en" ? "Creating cloned voice model..." : "正在自动创建复刻音色模型...");
       const created = await createAliyunCloneVoiceModel({
         apiKey,
@@ -1731,7 +1731,6 @@ async function configureTtsSelection(scope, settings) {
         targetModel,
         speaker,
         promptAudioUrl,
-        promptText,
       });
 
       modelId = created.modelId || "";

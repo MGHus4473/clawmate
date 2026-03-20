@@ -706,12 +706,20 @@ test("createAliyunCloneVoiceModel and pollAliyunCloneVoiceModel are exposed for 
     targetModel: "cosyvoice-v3.5-plus",
     speaker: "mghus",
     promptAudioUrl: "https://example.com/audio.wav",
-    promptText: "你好呀",
-    fetchImpl: async () => {
+    fetchImpl: async (url, init) => {
       createCalled = true;
+      assert.equal(url, "https://dashscope.aliyuncs.com/api/v1/services/voice/audio/voice-cloning");
+      assert.equal(init?.method, "POST");
+      assert.deepEqual(JSON.parse(String(init?.body)), {
+        model: "cosyvoice-v3.5-plus",
+        input: {
+          prefix: "mghus",
+          url: "https://example.com/audio.wav",
+        },
+      });
       return new Response(JSON.stringify({
-        output: {
-          task_id: "task-1",
+        data: {
+          id: "voice-123",
           status: "PENDING",
         },
       }), {
@@ -725,8 +733,8 @@ test("createAliyunCloneVoiceModel and pollAliyunCloneVoiceModel are exposed for 
   });
 
   assert.equal(createCalled, true);
-  assert.equal(createResult.taskId, "task-1");
-  assert.equal(createResult.modelId, null);
+  assert.equal(createResult.taskId, null);
+  assert.equal(createResult.modelId, "voice-123");
 
   const pollResult = await __testing.pollAliyunCloneVoiceModel({
     apiKey: "test-key",
@@ -737,9 +745,9 @@ test("createAliyunCloneVoiceModel and pollAliyunCloneVoiceModel are exposed for 
     fetchImpl: async () => {
       pollCalled = true;
       return new Response(JSON.stringify({
-        output: {
-          status: "SUCCEEDED",
-          model_id: "model-123",
+        data: {
+          status: "OK",
+          id: "voice-123",
         },
       }), {
         status: 200,
@@ -752,5 +760,6 @@ test("createAliyunCloneVoiceModel and pollAliyunCloneVoiceModel are exposed for 
   });
 
   assert.equal(pollCalled, true);
-  assert.equal(pollResult.modelId, "model-123");
+  assert.equal(pollResult.modelId, "voice-123");
+  assert.equal(pollResult.status, "OK");
 });
