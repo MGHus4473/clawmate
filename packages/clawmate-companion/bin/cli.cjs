@@ -14,7 +14,7 @@ const os = require("os");
 const {
   createAliyunCloneVoiceModel,
   pollAliyunCloneVoiceModel,
-} = require("../src/core/tts/aliyun-clone.ts");
+} = require("./aliyun-clone.cjs");
 
 function resolveOpenClawHome() {
   const envHome = process.env.OPENCLAW_HOME?.trim();
