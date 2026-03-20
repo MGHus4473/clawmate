@@ -61,15 +61,20 @@ test("resolveRuntimeConfig applies direct tts apiKey overrides", () => {
     pluginConfig: {
       tts: {
         enabled: true,
-        model: "qwen3-tts-flash",
-        voice: "Chelsie",
-        apiKey: "shared-tts-key",
+        provider: "aliyun-official",
+        official: {
+          model: "qwen3-tts-flash",
+          voice: "Chelsie",
+          apiKey: "shared-tts-key",
+        },
       },
       agents: {
         "ding-work": {
           tts: {
-            voice: "Cherry",
-            apiKey: "work-tts-key",
+            official: {
+              voice: "Cherry",
+              apiKey: "work-tts-key",
+            },
           },
         },
       },
@@ -78,14 +83,15 @@ test("resolveRuntimeConfig applies direct tts apiKey overrides", () => {
 
   const defaultConfig = __testing.resolveRuntimeConfig(api as never, { agentId: "ding-main" });
   assert.equal(defaultConfig.tts.enabled, true);
-  assert.equal(defaultConfig.tts.voice, "Chelsie");
-  assert.equal(defaultConfig.tts.apiKey, "shared-tts-key");
+  assert.equal(defaultConfig.tts.provider, "aliyun-official");
+  assert.equal(defaultConfig.tts.official.voice, "Chelsie");
+  assert.equal(defaultConfig.tts.official.apiKey, "shared-tts-key");
 
   const workConfig = __testing.resolveRuntimeConfig(api as never, { agentId: "ding-work" });
   assert.equal(workConfig.tts.enabled, true);
-  assert.equal(workConfig.tts.model, "qwen3-tts-flash");
-  assert.equal(workConfig.tts.voice, "Cherry");
-  assert.equal(workConfig.tts.apiKey, "work-tts-key");
+  assert.equal(workConfig.tts.official.model, "qwen3-tts-flash");
+  assert.equal(workConfig.tts.official.voice, "Cherry");
+  assert.equal(workConfig.tts.official.apiKey, "work-tts-key");
 });
 
 test("before_agent_start adds TTS prependContext when TTS is enabled", async () => {
@@ -191,7 +197,10 @@ test("clawmate_generate_tts returns local audio path on success", async () => {
       selectedCharacter: "brooke",
       tts: {
         enabled: true,
-        apiKey: "test-key",
+        provider: "aliyun-official",
+        official: {
+          apiKey: "test-key",
+        },
       },
     });
 

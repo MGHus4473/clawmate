@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { generateSelfie } from "./core/pipeline";
 import { prepareSelfie } from "./core/prepare";
 import { generateTts } from "./core/tts";
+import { transcodeAudioWithFfmpeg } from "./core/tts/ffmpeg";
 import { loadCharacterAssets, listCharacters } from "./core/characters";
 import { createCharacter } from "./core/character-creator";
 import { createLogger } from "./core/logger";
@@ -35,12 +36,32 @@ interface PluginConfigOverrideInput {
   proactiveSelfie?: { enabled?: boolean; probability?: number };
   tts?: {
     enabled?: boolean;
+    provider?: string;
+    outputFormat?: string;
     model?: string;
     voice?: string;
     languageType?: string;
     apiKey?: string;
     baseUrl?: string;
     degradeMessage?: string;
+    official?: {
+      model?: string;
+      voice?: string;
+      languageType?: string;
+      apiKey?: string;
+      baseUrl?: string;
+    };
+    clone?: {
+      apiKey?: string;
+      baseUrl?: string;
+      targetModel?: string;
+      modelId?: string;
+      synthesisModel?: string;
+      speaker?: string;
+      promptAudioUrl?: string;
+      promptText?: string;
+      statusUrl?: string;
+    };
   };
 }
 
@@ -516,31 +537,42 @@ async function persistImageToLocal(imageRef: string, requestId: string | null): 
   throw new Error("unsupported image reference format");
 }
 
-async function persistAudioToLocal(audioRef: string, requestId: string | null): Promise<string> {
+async function persistAudioToLocal(
+  audioRef: string,
+  requestId: string | null,
+  outputFormat: "wav" | "ogg" | "opus" = "wav",
+): Promise<string> {
   const trimmed = audioRef.trim();
   if (!trimmed) {
     throw new Error("empty audio reference");
   }
 
-  const localPath = resolveExistingLocalPath(trimmed);
-  if (localPath) {
-    await fs.access(localPath);
+  let localPath: string | null = null;
+  const existingLocalPath = resolveExistingLocalPath(trimmed);
+  if (existingLocalPath) {
+    await fs.access(existingLocalPath);
+    localPath = existingLocalPath;
+  } else if (AUDIO_DATA_URL_PATTERN.test(trimmed)) {
+    localPath = await persistDataUrlAudio(trimmed, requestId);
+  } else if (HTTP_URL_PATTERN.test(trimmed)) {
+    localPath = await persistRemoteAudio(trimmed, requestId);
+  } else if (isLikelyRawBase64(trimmed)) {
+    localPath = await persistRawBase64Audio(trimmed, requestId);
+  }
+
+  if (!localPath) {
+    throw new Error("unsupported audio reference format");
+  }
+
+  try {
+    const transcoded = await transcodeAudioWithFfmpeg({
+      inputPath: localPath,
+      outputFormat,
+    });
+    return transcoded.outputPath;
+  } catch {
     return localPath;
   }
-
-  if (AUDIO_DATA_URL_PATTERN.test(trimmed)) {
-    return persistDataUrlAudio(trimmed, requestId);
-  }
-
-  if (HTTP_URL_PATTERN.test(trimmed)) {
-    return persistRemoteAudio(trimmed, requestId);
-  }
-
-  if (isLikelyRawBase64(trimmed)) {
-    return persistRawBase64Audio(trimmed, requestId);
-  }
-
-  throw new Error("unsupported audio reference format");
 }
 
 function resolvePluginRoot(api: OpenClawPluginApiLike): string {
@@ -713,12 +745,27 @@ function resolveRuntimeConfig(
     proactiveSelfie: { enabled: false, probability: 0.1 },
     tts: {
       enabled: false,
-      model: "qwen3-tts-flash",
-      voice: "Chelsie",
-      languageType: "Chinese",
-      apiKey: "",
-      baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+      provider: "aliyun-official",
+      outputFormat: "wav",
       degradeMessage: "语音暂时发送失败，我先打字陪你。",
+      official: {
+        model: "qwen3-tts-flash",
+        voice: "Chelsie",
+        languageType: "Chinese",
+        apiKey: "",
+        baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+      },
+      clone: {
+        apiKey: "",
+        baseUrl: "https://dashscope.aliyuncs.com/api/v1",
+        targetModel: "cosyvoice-v1",
+        modelId: "",
+        synthesisModel: "cosyvoice-clone-v1",
+        speaker: "",
+        promptAudioUrl: "",
+        promptText: "",
+        statusUrl: "https://dashscope.aliyuncs.com/api/v1",
+      },
     },
   };
 
@@ -809,9 +856,9 @@ async function formatResult(result: GenerateSelfieResult, logger: ReturnType<typ
   });
 }
 
-async function formatTtsResult(result: GenerateTtsResult): Promise<string> {
+async function formatTtsResult(result: GenerateTtsResult, outputFormat: "wav" | "ogg" | "opus" = "wav"): Promise<string> {
   if (result.ok) {
-    const audioPath = await persistAudioToLocal(result.audioUrl, result.requestId);
+    const audioPath = await persistAudioToLocal(result.audioUrl, result.requestId, outputFormat);
     return JSON.stringify({
       ok: true,
       audioPath,
@@ -1072,7 +1119,7 @@ export default function registerClawMateCompanion(api: OpenClawPluginApiLike): v
 
         let text: string;
         try {
-          text = await formatTtsResult(result);
+          text = await formatTtsResult(result, config.tts.outputFormat);
         } catch (error) {
           const remoteAudioUrl =
             result.ok && HTTP_URL_PATTERN.test(result.audioUrl.trim()) ? result.audioUrl.trim() : null;
