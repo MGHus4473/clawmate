@@ -146,7 +146,7 @@ test("clawmate_generate_tts returns structured failure when apiKey is missing", 
   assert.match(payload.error, /TTS_API_KEY_MISSING/);
 });
 
-test("clawmate_generate_tts returns local media path on success", async () => {
+test("clawmate_generate_tts returns local audio path on success", async () => {
   const workspaceDir = await makeTempDir("clawmate-tts-success-");
   const previousOpenClawHome = process.env.OPENCLAW_HOME;
   const originalFetch = globalThis.fetch;
@@ -213,7 +213,6 @@ test("clawmate_generate_tts returns local media path on success", async () => {
     assert.equal(payload.ok, true);
     assert.equal(payload.requestId, "req-tts-1");
     assert.equal(payload.voice, "Chelsie");
-    assert.match(payload.mediaLine, /^MEDIA:\s+/);
     assert.ok(path.isAbsolute(payload.audioPath));
 
     await fs.access(payload.audioPath);

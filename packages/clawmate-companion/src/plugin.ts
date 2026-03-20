@@ -784,13 +784,12 @@ export const __testing = {
 
 async function formatResult(result: GenerateSelfieResult, logger: ReturnType<typeof createLogger>): Promise<string> {
   if (result.ok) {
-    const imageUrl = await persistImageToLocal(result.imageUrl, result.requestId);
+    const imagePath = await persistImageToLocal(result.imageUrl, result.requestId);
 
     return JSON.stringify({
       ok: true,
-      imageUrl,
-      imageMarkdown: `![clawmate-selfie](${imageUrl})`,
-      mediaLine: `MEDIA: ${imageUrl}`,
+      imagePath,
+      imageUrl: imagePath,
       provider: result.provider,
       requestId: result.requestId,
       characterId: result.characterId,
@@ -816,7 +815,6 @@ async function formatTtsResult(result: GenerateTtsResult): Promise<string> {
     return JSON.stringify({
       ok: true,
       audioPath,
-      mediaLine: `MEDIA: ${audioPath}`,
       requestId: result.requestId,
       model: result.model,
       voice: result.voice,
@@ -961,7 +959,7 @@ export default function registerClawMateCompanion(api: OpenClawPluginApiLike): v
 
     const generateSelfieTool: OpenClawPluginToolLike<ToolParams> = {
       name: "clawmate_generate_selfie",
-      description: "接收模型生成的完整英文提示词，调用图像生成服务生成 ClawMate 自拍图并返回结构化结果",
+      description: "接收模型生成的完整英文提示词，调用图像生成服务生成 ClawMate 自拍图并返回包含本地图片路径的结构化结果",
       parameters: {
         type: "object",
         additionalProperties: false,
@@ -1047,7 +1045,7 @@ export default function registerClawMateCompanion(api: OpenClawPluginApiLike): v
 
     const generateTtsTool: OpenClawPluginToolLike<ToolParams> = {
       name: "clawmate_generate_tts",
-      description: "接收适合口播的短文本，调用阿里云千问 TTS 生成语音并返回本地媒体路径",
+      description: "接收适合口播的短文本，调用阿里云千问 TTS 生成语音并返回本地音频路径",
       parameters: {
         type: "object",
         additionalProperties: false,

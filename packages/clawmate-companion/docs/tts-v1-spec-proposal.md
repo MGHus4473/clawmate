@@ -20,7 +20,7 @@ Proposed
 - 在 `before_agent_start` 将角色人格注入工作区 `SOUL.md`
 - 通过独立 skill 引导 Agent 在合适场景触发生图
 - 通过 tool 调用外部 provider 生成图片
-- 将生成结果落盘为本地媒体路径，并通过 `MEDIA:` 行交给上层通道发送
+- 将生成结果落盘为本地媒体路径，并交给上层通道按各自能力发送
 
 当前缺失能力：
 
@@ -130,19 +130,19 @@ TTS V1 沿用现有项目分层：
 - 调阿里云 Qwen TTS
 - 获取远端音频 URL
 - 下载到本地
-- 返回 `audioPath` 和 `mediaLine`
+- 返回 `audioPath`
 
 ### 4. Media Delivery Layer
 
 继续复用上层 OpenClaw 媒体发送机制。
 
-工具成功后返回：
+工具成功后返回本地绝对路径：
 
 ```text
-MEDIA: /absolute/path/to/audio.wav
+/absolute/path/to/audio.wav
 ```
 
-不新增 `AUDIO:` 语法。
+不在插件侧规定 `MEDIA:`、`AUDIO:` 或其他渠道协议；具体发送方式由宿主运行时决定。
 
 ## Why Single-Step Tool
 
@@ -251,7 +251,6 @@ Add a new top-level config object:
 {
   "ok": true,
   "audioPath": "/absolute/path/to/clawmate-tts.wav",
-  "mediaLine": "MEDIA: /absolute/path/to/clawmate-tts.wav",
   "model": "qwen3-tts-flash",
   "voice": "Chelsie",
   "requestId": null
@@ -348,7 +347,7 @@ V1 stores `.wav`
 - Decide whether this reply should be voice
 - Produce a short `spokenText`
 - Call `clawmate_generate_tts`
-- On success, output only `MEDIA: <audioPath>`
+- On success, hand off the returned local `audioPath` to the host/runtime
 - On failure, degrade to normal text
 
 ### Spoken Text Constraints
@@ -399,7 +398,6 @@ This hint must stay short and must not duplicate the full skill rules.
 - Disabled TTS returns structured failure
 - Missing API key returns structured failure
 - Successful TTS result returns local absolute path
-- Success payload includes `mediaLine`
 - Audio persistence helper stores file under expected directory
 
 ### Manual Probe
@@ -441,7 +439,7 @@ V1 accepts this risk because:
 - A dedicated TTS skill exists and documents trigger behavior
 - A `clawmate_generate_tts` tool exists
 - Tool can call Aliyun Qwen TTS and produce a local audio file
-- Tool returns `MEDIA: <local-audio-path>` on success
+- Tool returns a local audio path on success
 - Voice replies do not duplicate the same text in the final user-visible output
 - Failures degrade to text without breaking the conversation
 - Feature can be disabled entirely through config

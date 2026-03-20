@@ -63,19 +63,14 @@ clawmate_generate_tts({
 ### On success
 
 1. Do not send the same content as visible text
-2. Output a separate line:
-
-```text
-MEDIA: <audioPath>
-```
-
-Use `mediaLine` directly when available.
+2. The tool returns a local audio path in `audioPath`
+3. Use the audio referenced by that path and send it to the user
+4. Do not wrap it in `MEDIA:`, Markdown, or any channel-specific protocol
 
 ### On failure
 
 1. Use the returned `message` to continue naturally in text
-2. Do not fabricate audio paths
-3. Do not output `MEDIA:` on failure
+2. Do not fabricate audio paths or delivery syntax
 
 ## Prohibited Actions
 

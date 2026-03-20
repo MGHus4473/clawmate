@@ -133,7 +133,6 @@ clawmate_generate_tts({
 {
   "ok": true,
   "audioPath": "/absolute/path/to/clawmate-tts.wav",
-  "mediaLine": "MEDIA: /absolute/path/to/clawmate-tts.wav",
   "model": "qwen3-tts-flash",
   "voice": "Chelsie"
 }
@@ -168,7 +167,7 @@ clawmate_generate_tts({
 
 说明：
 
-- 共享媒体解析已经支持 `audio` 类型和 `MEDIA:` 行
+- 共享媒体解析已经支持 `audio` 类型和本地媒体文件路径
 - `.wav` 能作为通用音频文件被识别
 - 某些通道可能把 `.wav` 当文件发送而不是原生语音消息，这属于后续优化项，不阻塞第一版
 
@@ -411,10 +410,10 @@ description: Send contextualized voice messages for ClawMate when the current mo
 2. 如果不该发语音，直接正常文字回复，不调用工具
 3. 如果该发语音，先写一段适合口播的 `spokenText`
 4. 调用 `clawmate_generate_tts({ text: spokenText })`
-5. 成功时只输出：
+5. 成功时把返回的本地 `audioPath` 交给宿主 / 上层渠道处理：
 
 ```text
-MEDIA: <audioPath>
+/absolute/path/to/audio.wav
 ```
 
 6. 不要再把同内容文本发给用户
@@ -503,10 +502,9 @@ MEDIA: <audioPath>
 ## 九、第一版的推荐测试点
 
 - `clawmate_generate_tts` 成功时能返回本地绝对路径
-- 返回结果中包含 `mediaLine`
 - 工具失败时能返回 `degradeMessage`
 - Skill 文案能稳定约束“发语音时不再发同内容文字”
-- 音频文件通过 `MEDIA:` 行能被上层媒体发送逻辑识别
+- 音频文件能通过上层媒体发送逻辑按渠道能力处理
 - QQ / WeCom 之类通道至少能把音频作为媒体发出去
 
 ## 十、建议的实施顺序

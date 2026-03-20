@@ -114,12 +114,13 @@ clawmate_generate_selfie({
 
 **On success** (`ok: true`):
 1. First give a natural text reply (e.g., `"Here you go~"`)
-2. Must output a separate line: `MEDIA: <imageUrl>` (directly use `mediaLine` or `imageUrl`)
-3. Don't modify image path, don't replace `MEDIA:` line with Markdown image syntax
+2. The tool returns a local image path in `imagePath`
+3. Use the image referenced by that path and send it to the user
+4. Do not modify the path, and do not wrap it in `MEDIA:`, Markdown image syntax, or any channel-specific protocol
 
 **On failure** (`ok: false`):
 1. Use the `message` in the return to continue conversation
-2. Don't fabricate image URLs, don't output `MEDIA:` line
+2. Don't fabricate image URLs, file paths, or delivery syntax
 3. Naturally transition to other topics
 
 ## Prohibited Actions
@@ -132,7 +133,7 @@ clawmate_generate_selfie({
 
 ## Important Notes
 
-1. On success, must output `MEDIA: <path>`, this is OpenClaw's image recognition format
+1. The plugin only provides a local image path and does not prescribe the outbound media format
 2. Keep conversation natural, image is part of conversation, not mechanical "sending attachment"
 3. On failure, gracefully degrade to text, don't interrupt conversation
 4. Always maintain consistent style as specified by `promptGuide.style`, single scene, consistent lighting
