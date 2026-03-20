@@ -11,6 +11,10 @@ const path = require("path");
 const readline = require("readline");
 const { execSync } = require("child_process");
 const os = require("os");
+const {
+  createAliyunCloneVoiceModel,
+  pollAliyunCloneVoiceModel,
+} = require("../src/core/tts/aliyun-clone.ts");
 
 function resolveOpenClawHome() {
   const envHome = process.env.OPENCLAW_HOME?.trim();
@@ -1707,7 +1711,7 @@ async function configureTtsSelection(scope, settings) {
     logSuccess(`${t("selected")} ${targetModel}`);
 
     log(`  ${c("dim", t("tts_clone_model_id_hint"))}`);
-    const modelId = (await ask(`  ${t("tts_clone_model_id")}: `)) || current.clone.modelId || "";
+    let modelId = (await ask(`  ${t("tts_clone_model_id")}: `)) || current.clone.modelId || "";
     log(`  ${c("dim", t("tts_clone_synthesis_model_hint"))}`);
     const synthesisModel = (await ask(`  ${t("tts_clone_synthesis_model")}: `)) || current.clone.synthesisModel || "cosyvoice-clone-v1";
     log(`  ${c("dim", t("tts_clone_speaker_hint"))}`);
@@ -1718,6 +1722,35 @@ async function configureTtsSelection(scope, settings) {
     const promptText = (await ask(`  ${t("tts_clone_prompt_text")}: `)) || current.clone.promptText || "";
     log(`  ${c("dim", t("tts_clone_status_url_hint"))}`);
     const statusUrl = (await ask(`  ${t("tts_clone_status_url")}: `)) || current.clone.statusUrl || TTS_DEFAULT_BASE_URL;
+
+    if (!modelId && promptAudioUrl && promptText) {
+      logInfo(lang === "en" ? "Creating cloned voice model..." : "正在自动创建复刻音色模型...");
+      const created = await createAliyunCloneVoiceModel({
+        apiKey,
+        baseUrl: current.clone.baseUrl || TTS_DEFAULT_BASE_URL,
+        targetModel,
+        speaker,
+        promptAudioUrl,
+        promptText,
+      });
+
+      modelId = created.modelId || "";
+      if (!modelId && created.taskId) {
+        logInfo(lang === "en" ? "Waiting for cloned voice model to finish..." : "正在等待复刻音色模型创建完成...");
+        const polled = await pollAliyunCloneVoiceModel({
+          apiKey,
+          statusUrl,
+          taskId: created.taskId,
+        });
+        modelId = polled.modelId || "";
+      }
+
+      if (!modelId) {
+        logError(lang === "en" ? "Unable to resolve clone modelId automatically" : "未能自动获取复刻模型 modelId");
+        return null;
+      }
+      logSuccess(`${t("selected")} modelId=${modelId}`);
+    }
 
     const result = {
       mode: "set",
@@ -2287,6 +2320,8 @@ module.exports = {
     normalizeTtsConfig,
     normalizeAgents,
     resolveScopeSettings,
+    createAliyunCloneVoiceModel,
+    pollAliyunCloneVoiceModel,
     setLang(nextLang) {
       lang = nextLang;
     },
