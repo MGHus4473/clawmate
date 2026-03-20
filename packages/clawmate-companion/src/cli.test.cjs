@@ -708,18 +708,20 @@ test("createAliyunCloneVoiceModel and pollAliyunCloneVoiceModel are exposed for 
     promptAudioUrl: "https://example.com/audio.wav",
     fetchImpl: async (url, init) => {
       createCalled = true;
-      assert.equal(url, "https://dashscope.aliyuncs.com/api/v1/services/voice/audio/voice-cloning");
+      assert.equal(url, "https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization");
       assert.equal(init?.method, "POST");
       assert.deepEqual(JSON.parse(String(init?.body)), {
-        model: "cosyvoice-v3.5-plus",
+        model: "voice-enrollment",
         input: {
+          action: "create_voice",
+          target_model: "cosyvoice-v3.5-plus",
           prefix: "mghus",
           url: "https://example.com/audio.wav",
         },
       });
       return new Response(JSON.stringify({
-        data: {
-          id: "voice-123",
+        output: {
+          voice_id: "voice-123",
           status: "PENDING",
         },
       }), {
@@ -742,12 +744,21 @@ test("createAliyunCloneVoiceModel and pollAliyunCloneVoiceModel are exposed for 
     taskId: "task-1",
     maxAttempts: 1,
     pollIntervalMs: 0,
-    fetchImpl: async () => {
+    fetchImpl: async (url, init) => {
       pollCalled = true;
+      assert.equal(url, "https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization");
+      assert.equal(init?.method, "POST");
+      assert.deepEqual(JSON.parse(String(init?.body)), {
+        model: "voice-enrollment",
+        input: {
+          action: "query_voice",
+          voice_id: "task-1",
+        },
+      });
       return new Response(JSON.stringify({
-        data: {
+        output: {
           status: "OK",
-          id: "voice-123",
+          voice_id: "voice-123",
         },
       }), {
         status: 200,

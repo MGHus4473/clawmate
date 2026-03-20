@@ -49,6 +49,7 @@ interface CloneApiBody {
     audio?: {
       url?: unknown;
     };
+    voice_id?: unknown;
     model_id?: unknown;
     task_id?: unknown;
     status?: unknown;
@@ -75,12 +76,17 @@ function buildGenerationUrl(baseUrl: string): string {
   return `${normalizeBaseUrl(baseUrl)}/services/aigc/multimodal-generation/generation`;
 }
 
-function buildCloneModelCreateUrl(baseUrl: string): string {
-  return `${normalizeBaseUrl(baseUrl)}/services/voice/audio/voice-cloning`; 
+function buildCloneCustomizationUrl(baseUrl: string): string {
+  return `${normalizeBaseUrl(baseUrl)}/services/audio/tts/customization`;
 }
 
-function buildCloneTaskStatusUrl(statusUrl: string, taskId: string): string {
-  return `${normalizeBaseUrl(statusUrl)}/services/voice/audio/voice-cloning/${encodeURIComponent(taskId)}`;
+function normalizeClonePrefix(value: string | undefined): string {
+  const normalized = (value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")
+    .slice(0, 9);
+  return normalized || "clawmate";
 }
 
 async function parseJsonBody(response: Response): Promise<{ requestId: string | null; body: CloneApiBody | null; rawText: string }> {
@@ -122,16 +128,18 @@ export async function createAliyunCloneVoiceModel(
   options: CreateAliyunCloneVoiceModelOptions,
 ): Promise<CreateAliyunCloneVoiceModelResult> {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const response = await fetchImpl(buildCloneModelCreateUrl(options.baseUrl), {
+  const response = await fetchImpl(buildCloneCustomizationUrl(options.baseUrl), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${options.apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: options.targetModel,
+      model: "voice-enrollment",
       input: {
-        prefix: options.speaker?.trim() || undefined,
+        action: "create_voice",
+        target_model: options.targetModel,
+        prefix: normalizeClonePrefix(options.speaker),
         url: options.promptAudioUrl,
       },
     }),
@@ -141,6 +149,7 @@ export async function createAliyunCloneVoiceModel(
   return {
     requestId,
     modelId:
+      toOptionalString(body?.output?.voice_id) ??
       toOptionalString(body?.output?.model_id) ??
       toOptionalString(body?.data?.model_id) ??
       toOptionalString(body?.data?.id),
@@ -158,21 +167,30 @@ export async function pollAliyunCloneVoiceModel(
   const pollIntervalMs = options.pollIntervalMs ?? 3000;
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const response = await fetchImpl(buildCloneTaskStatusUrl(options.statusUrl, options.taskId), {
-      method: "GET",
+    const response = await fetchImpl(buildCloneCustomizationUrl(options.statusUrl), {
+      method: "POST",
       headers: {
         Authorization: `Bearer ${options.apiKey}`,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        model: "voice-enrollment",
+        input: {
+          action: "query_voice",
+          voice_id: options.taskId,
+        },
+      }),
     });
 
     const { requestId, body } = await parseJsonBody(response);
     const status = toOptionalString(body?.output?.status) ?? toOptionalString(body?.data?.status);
     const modelId =
+      toOptionalString(body?.output?.voice_id) ??
       toOptionalString(body?.output?.model_id) ??
       toOptionalString(body?.data?.model_id) ??
       toOptionalString(body?.data?.id);
 
-    if (status === "SUCCEEDED" || status === "SUCCESS" || modelId) {
+    if (status === "OK" || status === "SUCCEEDED" || status === "SUCCESS" || modelId) {
       return {
         requestId,
         modelId,
@@ -182,7 +200,7 @@ export async function pollAliyunCloneVoiceModel(
       };
     }
 
-    if (status === "FAILED") {
+    if (status === "FAILED" || status === "UNDEPLOYED") {
       throw new ClawMateError("复刻语音模型创建失败", {
         code: "TTS_CLONE_MODEL_CREATE_FAILED",
         requestId,
