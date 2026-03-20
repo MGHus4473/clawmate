@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { ClawMateError } from "../errors";
 
 export interface CreateAliyunCloneVoiceModelOptions {
@@ -64,6 +65,13 @@ interface CloneApiBody {
   message?: unknown;
 }
 
+interface CloneWsEventEnvelope {
+  header?: {
+    event?: unknown;
+    task_id?: unknown;
+  };
+}
+
 function toOptionalString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
@@ -78,6 +86,17 @@ function buildGenerationUrl(baseUrl: string): string {
 
 function buildCloneCustomizationUrl(baseUrl: string): string {
   return `${normalizeBaseUrl(baseUrl)}/services/audio/tts/customization`;
+}
+
+function buildWebsocketUrl(baseUrl: string): string {
+  const normalized = normalizeBaseUrl(baseUrl);
+  if (normalized.startsWith("https://")) {
+    return normalized.replace("https://", "wss://").replace(/\/api\/v1$/, "/api-ws/v1/inference");
+  }
+  if (normalized.startsWith("http://")) {
+    return normalized.replace("http://", "ws://").replace(/\/api\/v1$/, "/api-ws/v1/inference");
+  }
+  return normalized;
 }
 
 function normalizeClonePrefix(value: string | undefined): string {
@@ -222,39 +241,220 @@ export async function pollAliyunCloneVoiceModel(
   });
 }
 
+async function resolveWebSocketConstructor(): Promise<typeof WebSocket> {
+  if (typeof WebSocket !== "undefined") {
+    return WebSocket;
+  }
+
+  const wsModule = await import("ws");
+  const ctor = wsModule.WebSocket ?? wsModule.default;
+  if (!ctor) {
+    throw new ClawMateError("当前环境缺少 WebSocket 支持", {
+      code: "TTS_WEBSOCKET_UNAVAILABLE",
+    });
+  }
+  return ctor as typeof WebSocket;
+}
+
+function encodeAudioAsDataUrl(chunks: Uint8Array[]): string {
+  const buffer = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
+  return `data:audio/mpeg;base64,${buffer.toString("base64")}`;
+}
+
 export async function generateAliyunCloneTts(
   options: GenerateAliyunCloneTtsOptions,
 ): Promise<GenerateAliyunCloneTtsResult> {
-  const fetchImpl = options.fetchImpl ?? fetch;
-  const response = await fetchImpl(buildGenerationUrl(options.baseUrl), {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${options.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: options.model,
-      input: {
-        text: options.text,
-        voice: options.modelId,
+  const WebSocketCtor = await resolveWebSocketConstructor();
+  const websocketUrl = buildWebsocketUrl(options.baseUrl);
+  const taskId = crypto.randomUUID().replace(/-/g, "");
+  const audioChunks: Uint8Array[] = [];
+
+  return await new Promise<GenerateAliyunCloneTtsResult>((resolve, reject) => {
+    let settled = false;
+    let started = false;
+    let requestId: string | null = null;
+    const socket = new (WebSocketCtor as unknown as {
+      new (url: string, protocols?: string | string[], options?: { headers?: Record<string, string> }): WebSocket;
+    })(websocketUrl, undefined, {
+      headers: {
+        Authorization: `Bearer ${options.apiKey}`,
       },
-    }),
-  });
-
-  const { requestId, body } = await parseJsonBody(response);
-  const audioUrl = toOptionalString(body?.output?.audio?.url);
-  if (!audioUrl) {
-    throw new ClawMateError("TTS provider 响应中缺少 audio url", {
-      code: "TTS_AUDIO_URL_MISSING",
-      requestId,
-      details: body,
     });
-  }
 
-  return {
-    audioUrl,
-    requestId,
-    model: options.model,
-    voice: options.speaker?.trim() || options.modelId,
-  };
+    const finish = (handler: () => void) => {
+      if (settled) return;
+      settled = true;
+      handler();
+      try {
+        socket.close();
+      } catch {
+        // ignore close errors
+      }
+    };
+
+    const sendJson = (payload: Record<string, unknown>) => {
+      socket.send(JSON.stringify(payload));
+    };
+
+    socket.binaryType = "arraybuffer";
+
+    socket.onopen = () => {
+      sendJson({
+        header: {
+          action: "run-task",
+          task_id: taskId,
+          streaming: "duplex",
+        },
+        payload: {
+          model: options.model,
+          task_group: "audio",
+          task: "tts",
+          function: "SpeechSynthesizer",
+          input: {},
+          parameters: {
+            voice: options.modelId,
+            volume: 50,
+            text_type: "PlainText",
+            sample_rate: 22050,
+            rate: 1,
+            format: "mp3",
+            pitch: 1,
+            seed: 0,
+            type: 0,
+            enable_ssml: true,
+          },
+        },
+      });
+    };
+
+    socket.onmessage = (event) => {
+      if (typeof event.data === "string") {
+        let envelope: CloneWsEventEnvelope | null = null;
+        try {
+          envelope = JSON.parse(event.data) as CloneWsEventEnvelope;
+        } catch {
+          finish(() =>
+            reject(
+              new ClawMateError("TTS provider 响应解析失败", {
+                code: "TTS_RESPONSE_PARSE_ERROR",
+                details: { responseText: event.data },
+              }),
+            ),
+          );
+          return;
+        }
+
+        const eventName = toOptionalString(envelope?.header?.event);
+        requestId = toOptionalString(envelope?.header?.task_id) ?? requestId;
+
+        if (eventName === "task-started") {
+          started = true;
+          sendJson({
+            header: {
+              action: "continue-task",
+              task_id: taskId,
+              streaming: "duplex",
+            },
+            payload: {
+              model: options.model,
+              task_group: "audio",
+              task: "tts",
+              function: "SpeechSynthesizer",
+              input: {
+                text: options.text,
+              },
+            },
+          });
+          sendJson({
+            header: {
+              action: "finish-task",
+              task_id: taskId,
+              streaming: "duplex",
+            },
+            payload: {
+              input: {},
+            },
+          });
+          return;
+        }
+
+        if (eventName === "task-finished") {
+          if (!audioChunks.length) {
+            finish(() =>
+              reject(
+                new ClawMateError("TTS provider 响应中缺少 audio url", {
+                  code: "TTS_AUDIO_URL_MISSING",
+                  requestId,
+                }),
+              ),
+            );
+            return;
+          }
+
+          finish(() =>
+            resolve({
+              audioUrl: encodeAudioAsDataUrl(audioChunks),
+              requestId,
+              model: options.model,
+              voice: options.speaker?.trim() || options.modelId,
+            }),
+          );
+          return;
+        }
+
+        if (eventName === "task-failed") {
+          finish(() =>
+            reject(
+              new ClawMateError("复刻语音合成失败", {
+                code: "TTS_PROVIDER_HTTP_ERROR",
+                requestId,
+                details: envelope,
+              }),
+            ),
+          );
+        }
+        return;
+      }
+
+      if (event.data instanceof ArrayBuffer) {
+        audioChunks.push(new Uint8Array(event.data));
+        return;
+      }
+
+      finish(() =>
+        reject(
+          new ClawMateError("TTS provider 返回了不支持的音频数据格式", {
+            code: "TTS_AUDIO_DATA_INVALID",
+            requestId,
+            details: { dataType: typeof event.data },
+          }),
+        ),
+      );
+    };
+
+    socket.onerror = () => {
+      finish(() =>
+        reject(
+          new ClawMateError(started ? "复刻语音合成连接失败" : "复刻语音合成启动失败", {
+            code: "TTS_WEBSOCKET_ERROR",
+            requestId,
+          }),
+        ),
+      );
+    };
+
+    socket.onclose = () => {
+      if (settled) {
+        return;
+      }
+      finish(() =>
+        reject(
+          new ClawMateError("复刻语音合成连接已关闭", {
+            code: "TTS_WEBSOCKET_CLOSED",
+            requestId,
+          }),
+        ),
+      );
+    };
+  });
 }
